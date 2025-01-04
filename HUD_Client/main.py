@@ -66,7 +66,7 @@ class HUDWindow(QWidget):
         # 타이머 설정
         self.timer = QTimer(self)
         self.timer.timeout.connect(lambda: self.update_active_widgets(shortlow=None, height=None))  # 0.5초마다 update_line_number 호출
-        self.timer.start(866)  # 500ms마다 실행
+        self.timer.start(333)  # 500ms마다 실행
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -207,17 +207,17 @@ class HUDWindow(QWidget):
     
     def animate_widget(self, left_y_distance, right_y_distance, center_shortlow, center_height, azimuth):
         self.ani_group = QParallelAnimationGroup()
-        ani_duration = 800
+        ani_duration = 300
         if not self.watch_lock:
             l_line_ani = QPropertyAnimation(self.left_line_widget, b"pos")
             l_line_ani.setDuration(ani_duration)
             l_line_ani.setStartValue(self.left_line_widget.pos())
             l_line_ani.setEndValue(self.left_line_widget.pos() + QPoint(0, left_y_distance))
-            l_line_ani.setEasingCurve(QEasingCurve.OutQuad)
+            l_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
             self.ani_group.addAnimation(l_line_ani)
             short_low_ani = QPropertyAnimation(self.center_shortlow_widget, b"value")
             short_low_ani.setDuration(ani_duration)
-            short_low_ani.setEasingCurve(QEasingCurve.OutQuad)
+            short_low_ani.setEasingCurve(QEasingCurve.InOutQuad)
             short_low_ani.setStartValue(self.center_shortlow_widget.value)
             short_low_ani.setEndValue(center_shortlow)
             self.ani_group.addAnimation(short_low_ani)
@@ -226,24 +226,24 @@ class HUDWindow(QWidget):
             r_line_ani.setDuration(ani_duration)
             r_line_ani.setStartValue(self.right_line_widget.pos())
             r_line_ani.setEndValue(self.right_line_widget.pos() + QPoint(0, right_y_distance))
-            r_line_ani.setEasingCurve(QEasingCurve.OutQuad)
+            r_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
             self.ani_group.addAnimation(r_line_ani)
             height_ani = QPropertyAnimation(self.center_height_widget, b"value")
             height_ani.setDuration(ani_duration)
-            height_ani.setEasingCurve(QEasingCurve.OutQuad)
+            height_ani.setEasingCurve(QEasingCurve.InOutQuad)
             height_ani.setStartValue(self.center_height_widget.value)
             height_ani.setEndValue(center_height)
             self.ani_group.addAnimation(height_ani)
 
         azimuth_ani = QPropertyAnimation(self.azimuth_widget, b"value")
         azimuth_ani.setDuration(ani_duration)
-        azimuth_ani.setEasingCurve(QEasingCurve.OutQuad)
+        azimuth_ani.setEasingCurve(QEasingCurve.InOutQuad)
         azimuth_ani.setStartValue(self.azimuth_widget.value)
         azimuth_ani.setEndValue(azimuth)
         self.ani_group.addAnimation(azimuth_ani)
         compass_ani = QPropertyAnimation(self.compass_widget, b"rotation")
         compass_ani.setDuration(ani_duration)
-        compass_ani.setEasingCurve(QEasingCurve.OutQuad)
+        compass_ani.setEasingCurve(QEasingCurve.InOutQuad)
         compass_ani.setStartValue(self.compass_widget.rotation)
         compass_ani.setEndValue(azimuth)
         self.ani_group.addAnimation(compass_ani)
