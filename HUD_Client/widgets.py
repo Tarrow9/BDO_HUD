@@ -4,6 +4,8 @@ from PyQt5.QtCore import Qt, QPoint, pyqtProperty
 from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QTransform
 from PyQt5.QtWidgets import QWidget, QLabel
 
+from draw_tools import draw_neon_line
+
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
 INF_HIGH = 60  # 좌측 세로선 상단 y
@@ -15,7 +17,7 @@ class LeftLineWidget(QLabel):
         self.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.setFont(QFont("Arial", 14))
         self.resize(100, 2400)  # 위젯 크기 설정
-        self.line_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
+        self.line_color = QColor(0, 255, 0, 218)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -31,8 +33,6 @@ class LeftLineWidget(QLabel):
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
                 painter.drawLine(50, target_y, 100, target_y)
-                # 텍스트 그리기
-                painter.setPen(self.line_color)
                 font = self.font()
                 painter.setFont(font)
                 painter.drawText(0, target_y-15, 50, 30, Qt.AlignLeft | Qt.AlignVCenter, str(line_number))
@@ -51,7 +51,7 @@ class RightLineWidget(QLabel):
         self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.setFont(QFont("Arial", 14))
         self.resize(100, 2100)  # 위젯 크기 설정
-        self.line_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
+        self.line_color = QColor(0, 255, 0, 218)  # 50% 투명한 초록색
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -67,8 +67,6 @@ class RightLineWidget(QLabel):
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
                 painter.drawLine(0, target_y, 50, target_y)
-                # 텍스트 그리기
-                painter.setPen(self.line_color)
                 font = self.font()
                 painter.setFont(font)
                 painter.drawText(45, target_y-15, 45, 30, Qt.AlignRight | Qt.AlignVCenter, str(line_number//10))
@@ -213,23 +211,20 @@ class CompassWidget(QWidget):
             )
             if i % 3 == 0:
                 painter.setFont(bold_text)
-                self.line_color.setAlpha(255)
-                painter.setPen(QPen(self.line_color, 4))
                 text_radius = radius * 0.65
                 outer_point = QPoint(
                     int(radius * math.cos(angle_rad)),
                     int(radius * math.sin(angle_rad))
                 )
+                draw_neon_line(painter, inner_point.x(), inner_point.y(), outer_point.x(), outer_point.y(), 3, 255)
             else:
                 painter.setFont(mini_text)
-                self.line_color.setAlpha(127)
-                painter.setPen(QPen(self.line_color, 2))
                 text_radius = radius * 0.6
                 outer_point = QPoint(
                     int(radius * 0.95 * math.cos(angle_rad)),
                     int(radius * 0.95 * math.sin(angle_rad))
                 )
-            painter.drawLine(inner_point, outer_point)
+                draw_neon_line(painter, inner_point.x(), inner_point.y(), outer_point.x(), outer_point.y(), 1, 127)
 
             # 숫자 그리기
             text_x = int(text_radius * math.cos(angle_rad))

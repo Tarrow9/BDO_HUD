@@ -13,6 +13,7 @@ from widgets import (LeftLineWidget,
     CompassWidget, 
     AzimuthWidget,
 )
+from draw_tools import draw_neon_line
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
@@ -74,7 +75,7 @@ class HUDWindow(QWidget):
         # 테두리 색상 및 두께 설정
         border_color = QColor(0, 255, 0, 192)
         pen = QPen(border_color)
-        t = 4  # 테두리 두께
+        t = 3  # 테두리 두께
         pen.setWidth(t)
         painter.setPen(pen)
 
@@ -88,31 +89,25 @@ class HUDWindow(QWidget):
         arrow_box_low = 60
         arrow_box_half = 15
 
-        # 좌측 세로선 그리기
-        painter.drawLine(inf_left, inf_high, inf_left, inf_low)  # 세로선
-        painter.drawLine(inf_left + t, center_y, inf_left + t + line_len, center_y)  # 중앙 가로선
-        # # 화살표상자
+        # 화살표상자
         l_arrow_box_x = inf_left+line_len+t
-        painter.drawLine(l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half)
-        painter.drawLine(l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half)
-        painter.drawLine(l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y-arrow_box_half)
-        painter.drawLine(l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half)
-        painter.drawLine(l_arrow_box_x+arrow_box_low, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half)
+        draw_neon_line(painter, l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y-arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_low, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half, t, 192)
 
-        # # 우측 세로선 그리기
-        painter.drawLine(inf_right, inf_high, inf_right, inf_low)  # 세로선
-        painter.drawLine(inf_right - line_len, center_y, inf_right - t, center_y)  # 중앙 가로선 오른쪽 끝
-        # # 화살표상자
+        # 화살표상자
         r_arrow_box_x = inf_right-line_len-t
-        painter.drawLine(r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, r_arrow_box_x, center_y)
-        painter.drawLine(r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, r_arrow_box_x, center_y)
-        painter.drawLine(r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half)
-        painter.drawLine(r_arrow_box_x-arrow_box_low, center_y+arrow_box_half, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half)
-        painter.drawLine(r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_low, center_y+arrow_box_half)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, r_arrow_box_x, center_y, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, r_arrow_box_x, center_y, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y+arrow_box_half, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_low, center_y+arrow_box_half, t, 192)
 
         # 중앙 맨 위 역삼각형 그리기
-        painter.drawLine(center_x - 15, 0, center_x, 15)
-        painter.drawLine(center_x + 15, 0, center_x, 15)
+        draw_neon_line(painter, center_x - 15, 0, center_x, 15, 2, 192)
+        draw_neon_line(painter, center_x + 15, 0, center_x, 15, 2, 192)
 
     def setClickThrough(self):
         hwnd = int(self.winId())  # PyQt 창의 핸들 ID 가져오기
