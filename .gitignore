@@ -1,0 +1,11 @@
+.venv
+.cannoncalc
+Calc_Server
+data/
+
+HUD_Client/tools.py
+HUD_Client/flow.py
+HUD_Client/chatgpt_code.py
+
+__pycache__/
+*.pyc
