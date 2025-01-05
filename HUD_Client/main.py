@@ -1,9 +1,9 @@
-import sys
+import sys, os
 import ctypes
 import threading
 from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QParallelAnimationGroup, QEasingCurve, QEvent, QObject, pyqtProperty
-from PyQt5.QtGui import QColor, QPainter, QPen, QFont
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel
+from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase
+from PyQt5.QtWidgets import QApplication, QWidget
 from pynput import keyboard
 
 from widgets import (LeftLineWidget, 
@@ -32,7 +32,15 @@ class HUDWindow(QWidget):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowOpacity(0.75)
 
-        self.setFont(QFont("Arial", 14))
+        # 폰트, 색 설정
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_path = os.path.join(current_dir, "fonts/ocr-b.ttf")
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
+            self.setFont(font)
+        else:
+            self.setFont(QFont("Arial", 14))
         self._warnining_color = QColor(255, 0, 0, 192)  # 50% 투명한 빨간색
         self._base_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
 
@@ -65,7 +73,7 @@ class HUDWindow(QWidget):
 
         # 타이머 설정
         self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.update_active_widgets(shortlow=None, height=None))  # 0.5초마다 update_line_number 호출
+        self.timer.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))  # 0.5초마다 update_line_number 호출
         self.timer.start(333)  # 500ms마다 실행
 
     def paintEvent(self, event):
@@ -93,17 +101,17 @@ class HUDWindow(QWidget):
         l_arrow_box_x = inf_left+line_len+t
         draw_neon_line(painter, l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, t, 192)
         draw_neon_line(painter, l_arrow_box_x, center_y, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, t, 192)
-        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y-arrow_box_half, t, 192)
-        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half, t, 192)
-        draw_neon_line(painter, l_arrow_box_x+arrow_box_low, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low+10, center_y-arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_half, center_y+arrow_box_half, l_arrow_box_x+arrow_box_low+10, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, l_arrow_box_x+arrow_box_low+10, center_y-arrow_box_half, l_arrow_box_x+arrow_box_low+10, center_y+arrow_box_half, t, 192)
 
         # 화살표상자
         r_arrow_box_x = inf_right-line_len-t
         draw_neon_line(painter, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, r_arrow_box_x, center_y, t, 192)
         draw_neon_line(painter, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, r_arrow_box_x, center_y, t, 192)
-        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, t, 192)
-        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y+arrow_box_half, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, t, 192)
-        draw_neon_line(painter, r_arrow_box_x-arrow_box_low, center_y-arrow_box_half, r_arrow_box_x-arrow_box_low, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low-25, center_y-arrow_box_half, r_arrow_box_x-arrow_box_half, center_y-arrow_box_half, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low-25, center_y+arrow_box_half, r_arrow_box_x-arrow_box_half, center_y+arrow_box_half, t, 192)
+        draw_neon_line(painter, r_arrow_box_x-arrow_box_low-25, center_y-arrow_box_half, r_arrow_box_x-arrow_box_low-25, center_y+arrow_box_half, t, 192)
 
         # 중앙 맨 위 역삼각형 그리기
         draw_neon_line(painter, center_x - 15, 0, center_x, 15, 2, 192)
@@ -156,11 +164,11 @@ class HUDWindow(QWidget):
         self.azimuth_widget.move(center_x-self.azimuth_widget.width()//2, 565)
         self.azimuth_widget.show()
     
-    def update_active_widgets(self, shortlow=None, height=None, azimuth=None):
+    def update_active_widgets(self, shortlow=100, height=0, azimuth=0.0):
         # test
         from random import randint, uniform
-        shortlow = randint(500, 600)
-        height = randint(-350, -150)
+        shortlow = randint(-100, 600)
+        height = randint(-350, 350)
         azimuth = round(uniform(0.0, 360.0), 1)
 
         shortlow_check = 0 < shortlow < 550

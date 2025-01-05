@@ -15,7 +15,6 @@ class LeftLineWidget(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.setFont(QFont("Arial", 14))
         self.resize(100, 2400)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)
 
@@ -33,8 +32,7 @@ class LeftLineWidget(QLabel):
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
                 painter.drawLine(50, target_y, 100, target_y)
-                font = self.font()
-                painter.setFont(font)
+                painter.setFont(self.font())
                 painter.drawText(0, target_y-15, 50, 30, Qt.AlignLeft | Qt.AlignVCenter, str(line_number))
             else:
                 painter.drawLine(70, target_y, 90, target_y)
@@ -49,8 +47,7 @@ class RightLineWidget(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.setFont(QFont("Arial", 14))
-        self.resize(100, 2100)  # 위젯 크기 설정
+        self.resize(150, 2100)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)  # 50% 투명한 초록색
 
     def paintEvent(self, event):
@@ -67,9 +64,8 @@ class RightLineWidget(QLabel):
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
                 painter.drawLine(0, target_y, 50, target_y)
-                font = self.font()
-                painter.setFont(font)
-                painter.drawText(45, target_y-15, 45, 30, Qt.AlignRight | Qt.AlignVCenter, str(line_number//10))
+                painter.setFont(self.font())
+                painter.drawText(55, target_y-15, 55, 30, Qt.AlignRight | Qt.AlignVCenter, str(line_number//10))
             else:
                 # 짧은 선 그리기
                 painter.drawLine(10, target_y, 30, target_y)
@@ -93,8 +89,7 @@ class ShortLowWidget(QWidget):
 
         # 텍스트 그리기
         painter.setPen(self.line_color)
-        font = self.font()
-        painter.setFont(font)
+        painter.setFont(self.font())
         painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, str(self.center_shortlow))
     
     def change_color(self, color):
@@ -124,8 +119,7 @@ class HeightWidget(QWidget):
 
         # 텍스트 그리기
         painter.setPen(self.line_color)
-        font = self.font()
-        painter.setFont(font)
+        painter.setFont(self.font())
         painter.drawText(self.rect(), Qt.AlignRight | Qt.AlignVCenter, str(self._height/10))
     
     def change_color(self, color):
@@ -195,8 +189,8 @@ class CompassWidget(QWidget):
         self._rotation = self._rotation % 360
 
         # 폰트 정의
-        mini_text = QFont("Arial", 8)
-        bold_text = QFont("Arial", 11)
+        mini_text = QFont("Bahnschrift Light", 8)
+        bold_text = QFont("Bahnschrift Light", 11)
         painter.setFont(mini_text)
 
         # 시침마다 직선 및 숫자 그리기
@@ -268,8 +262,7 @@ class AzimuthWidget(QWidget):
 
         # 텍스트 그리기
         painter.setPen(self.line_color)
-        font = self.font()
-        painter.setFont(font)
+        painter.setFont(self.font())
         painter.drawText(self.rect(), Qt.AlignCenter | Qt.AlignVCenter, str(round(self._azimuth)))
 
     def change_color(self, color):
