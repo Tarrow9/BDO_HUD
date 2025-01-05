@@ -90,12 +90,10 @@ class HUDWindow(QWidget):
         self.timer1.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
 
         self.timer2.timeout.connect(self.update_status_text)
-
-        self.timer3.timeout.connect(self.update_hit_table)
+        self.timer2.timeout.connect(self.update_hit_table)
 
         self.timer1.start(333)  # 333ms마다 실행
-        self.timer2.start(111)  # 111ms마다 실행
-        self.timer3.start(66)  # 66ms마다 실행, 스캔모드에서 on/off
+        self.timer2.start(66)  # 66ms마다 실행
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -193,7 +191,7 @@ class HUDWindow(QWidget):
 
     def create_initial_hit_table_widget(self):
         self.hit_table_widget = HitTableWidget(self)
-        self.hit_table_widget.move(INF_RIGHT+200, 230)
+        self.hit_table_widget.move(INF_RIGHT+200, 390)
         self.hit_table_widget.hide()
 
     # Update Widgets
@@ -316,17 +314,17 @@ class HUDWindow(QWidget):
     ## Key Actions
     def on_press(self, key):
         try:
-            if key == keyboard.Key.f11:  # F11 키가 눌리면
+            if key == keyboard.Key.f9:
                 # 이건 스캔 동작 상태 조작 로직
-                # self.watch_lock = not self.watch_lock
-                # print("F11 키가 눌렸습니다!", self.watch_lock)
-
+                self.watch_lock = not self.watch_lock
+                print("F11 키가 눌렸습니다!", self.watch_lock)
+            if key == keyboard.Key.f10:
                 # 이건 status문자 변경 조작 로직
-                # from random import randint
-                # random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
-                # self.status_text = random_list[randint(0, 4)]
-                # print("F11 키가 눌렸습니다!", self.status_text)
-
+                from random import randint
+                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
+                self.status_text = random_list[randint(0, 4)]
+                print("F11 키가 눌렸습니다!", self.status_text)
+            if key == keyboard.Key.f11:
                 # 이건 hit table active 로직
                 self.hit_table_widget.ani_count = -1
                 self.hit_table_widget.show()
