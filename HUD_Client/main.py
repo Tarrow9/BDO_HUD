@@ -57,18 +57,18 @@ class HUDWindow(QWidget):
         # LineWidget 리스트 초기화
         self.watch_lock = False
         self.left_line_widget = None
-        self.center_shortlow = 100 # max: 550 min: 0, center0 = 55*30 - 15
+        self.center_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
         self.center_shortlow_widget = None
         self.shortlow_error = False
         self.right_line_widget = None
-        self.center_height = 0  # max: 250 min: -250, center0 = 35*30 - 15
+        self.center_height : int = 0  # max: 250 min: -250, center0 = 35*30 - 15
         self.center_height_widget = None
         self.height_error = False
         self.create_initial_left_widgets()
         self.create_initial_right_widgets()
 
         # CompassWidget 초기화
-        self.azimuth = 0.0  # max: 360.0 min: 0.0
+        self.azimuth : float = 0.0  # max: 360.0 min: 0.0
         self.compass_widget = None
         self.azimuth_widget = None
         self.create_initial_compass_widgets()
@@ -203,6 +203,12 @@ class HUDWindow(QWidget):
         shortlow = randint(-100, 600)
         height = randint(-350, 350)
         azimuth = round(uniform(0.0, 360.0), 1)
+        ## for real
+        # diagonal = scan_diagonal()
+        # angle = scan_angle()
+        # shortlow = get_l(diagonal, angle)
+        # height = get_h(diagonal, angle)
+        # azimuth = scan_azimuth()
 
         shortlow_check = 0 < shortlow < 550
         height_check = -250 < height < 250
