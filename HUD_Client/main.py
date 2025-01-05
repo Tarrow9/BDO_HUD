@@ -276,10 +276,17 @@ class HUDWindow(QWidget):
         compass_ani.setEndValue(azimuth)
         self.ani_group.addAnimation(compass_ani)
 
-        self.ani_group.finished.connect(self.cleanup_animations)
+        self.ani_group.finished.connect(self.cleanup_sl_ht_az_animations)
         self.ani_group.start()
 
-    def cleanup_animations(self):
+    # HIT TABLE
+    def update_hit_table(self, hit_table):
+        self.hit_table = hit_table
+    
+    def animate_hit_table(self, hit_table):
+        pass
+
+    def cleanup_sl_ht_az_animations(self):
         """애니메이션 그룹을 정리"""
         if self.ani_group:
             self.ani_group.clear()  # 모든 애니메이션 제거
@@ -291,8 +298,15 @@ class HUDWindow(QWidget):
     def on_press(self, key):
         try:
             if key == keyboard.Key.f11:  # F11 키가 눌리면
-                self.watch_lock = not self.watch_lock
-                print("F11 키가 눌렸습니다!", self.watch_lock)
+                # 이건 스캔 동작 상태 조작 로직
+                # self.watch_lock = not self.watch_lock
+                # print("F11 키가 눌렸습니다!", self.watch_lock)
+                # 이건 status문자 변경 조작 로직
+                from random import randint
+                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
+                self.status_text = random_list[randint(0, 4)]
+                print("F11 키가 눌렸습니다!", self.status_text)
+                
         except AttributeError:
             pass
 
