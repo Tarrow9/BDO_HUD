@@ -204,9 +204,8 @@ class HUDWindow(QWidget):
         self.center_height = value_dict['height']
 
         # 방위각 반시계방향 시계방향 계산
-        delta = azimuth - self.azimuth
-        if abs(delta) > 180:
-            azimuth = delta + 360 if delta < 0 else delta - 360
+        delta = azimuth - self.azimuth_widget.azimuth
+        azimuth = azimuth-360 if delta > 180 else azimuth+360 if delta < -180 else azimuth
 
         # 여기서 LineWidget animate
         left_y_distance = (value_dict['shortlow'] - origin_shortlow) * 3
@@ -243,10 +242,10 @@ class HUDWindow(QWidget):
             height_ani.setEndValue(center_height)
             self.ani_group.addAnimation(height_ani)
 
-        azimuth_ani = QPropertyAnimation(self.azimuth_widget, b"value")
+        azimuth_ani = QPropertyAnimation(self.azimuth_widget, b"azimuth")
         azimuth_ani.setDuration(ani_duration)
         azimuth_ani.setEasingCurve(QEasingCurve.InOutQuad)
-        azimuth_ani.setStartValue(self.azimuth_widget.value)
+        azimuth_ani.setStartValue(self.azimuth_widget.azimuth)
         azimuth_ani.setEndValue(azimuth)
         self.ani_group.addAnimation(azimuth_ani)
         compass_ani = QPropertyAnimation(self.compass_widget, b"rotation")
@@ -264,8 +263,10 @@ class HUDWindow(QWidget):
         if self.ani_group:
             self.ani_group.clear()  # 모든 애니메이션 제거
             self.ani_group = None
+        self.azimuth_widget.azimuth %= 360
+        self.compass_widget.rotation %= 360
 
-    ## Actions
+    ## Key Actions
     def on_press(self, key):
         try:
             if key == keyboard.Key.f11:  # F11 키가 눌리면

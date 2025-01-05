@@ -186,7 +186,6 @@ class CompassWidget(QWidget):
         painter.translate(center)  # 중심을 (125, 125)로 설정, 이때 (0, 0) 기준
         # 회전 적용
         painter.rotate(-self._rotation)
-        self._rotation = self._rotation % 360
 
         # 폰트 정의
         mini_text = QFont("Bahnschrift Light", 8)
@@ -241,7 +240,7 @@ class CompassWidget(QWidget):
         return self._rotation
     @rotation.setter
     def rotation(self, rotation):
-        self._rotation = rotation
+        self._rotation = round(rotation, 1)
         self.update()
 
     def change_color(self, color):
@@ -263,7 +262,7 @@ class AzimuthWidget(QWidget):
         # 텍스트 그리기
         painter.setPen(self.line_color)
         painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignCenter | Qt.AlignVCenter, str(round(self._azimuth)))
+        painter.drawText(self.rect(), Qt.AlignCenter | Qt.AlignVCenter, str(round(self._azimuth) % 360))
 
     def change_color(self, color):
         color.setAlpha(255)
@@ -272,9 +271,9 @@ class AzimuthWidget(QWidget):
             self.update()
 
     @pyqtProperty(float)
-    def value(self):
+    def azimuth(self):
         return round(self._azimuth, 1)
-    @value.setter
-    def value(self, new_value):
+    @azimuth.setter
+    def azimuth(self, new_value):
         self._azimuth = round(new_value, 1)
         self.update()  # 숫자가 변경될 때 화면 갱신 
