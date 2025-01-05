@@ -1,7 +1,7 @@
 import math
 
 from PyQt5.QtCore import Qt, QPoint, pyqtProperty
-from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QTransform
+from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel
 
 from draw_tools import draw_neon_line
@@ -310,32 +310,85 @@ class StatusTextWidget(QWidget):
             self.update()
 
 class HitTableWidget(QWidget):
-    #Dummy
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._azimuth = 0.0
-        self.line_color = QColor(0, 255, 0, 255)  # 50% 투명한 초록색
-        self.resize(100, 100)
+        self.green_color = QColor(0, 255, 0, 255)
+        self.yellow_color = QColor(255, 255, 0, 255)
+        self.red_color = QColor(255, 0, 0, 255)
+        self.resize(700, 240) # 70px, 30px
 
+        self.ani_count = 16
+        self.point_bool = False
+
+        self.hit_table = { # base table
+            0: [67.55,  75.63,  80.7,   84.17,   89.51,   96.89,   106.52,  114.56,  122.89, 138.17], 
+            1: [91.38,  97.86,  104.57, 113.86,  123.55,  131.07,  138.82,  152.23,  166.25, 189.97], 
+            2: [141.25, 155.73, 167.05, 174.82,  186.8,   199.18, [220.7], [238.71], 262.21, 302.12], 
+            3: [171.36, 184.12, 197.35,'211.03',[225.18],[239.78], 265.14,  291.70,  313.99, 366.97], 
+            4: [182.76, 190.88, 199.18,'211.96',[220.7], [229.62],'243.32', 262.21,  276.85, 296.97], 
+            5: [184.18, 191.47, 198.91, 202.68, '210.33','218.12',[226.05],[238.21], 250.69, 267.83], 
+            6: [157.52, 163.41, 169.4,  175.51,  181.72,  188.04,  194.47,  204.31, '214.4', [231.75]]
+        }
+
+        self.pixmap = QPixmap(self.size())  # QPixmap 버퍼 생성
+        self.pixmap.fill(Qt.transparent)  # 초기화
+        
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        # baseline
+        painter.setPen(self.green_color)
+        font = self.font()
+        font.setPointSize(10)
+        painter.setFont(font)
+        painter.drawLine(0, 30, 770, 30)
+        painter.drawLine(70, 0, 70, 240)
 
-        # 텍스트 그리기
-        painter.setPen(self.line_color)
-        painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignCenter | Qt.AlignVCenter, str(round(self._azimuth) % 360))
+        for c in range(0, 10):
+            painter.drawText(70*(c+1), 0, 70, 30, Qt.AlignCenter | Qt.AlignVCenter, f"{c*10}~{(c+1)*10}")
+        for r in range(7):
+            painter.drawText(0, 30*(r+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, str(r))
 
-    def change_color(self, color):
-        color.setAlpha(255)
-        if self.line_color != color:
-            self.line_color = color
-            self.update()
+        painter.drawPixmap(0, 0, self.pixmap)
+        self.add_shortlows()
 
-    @pyqtProperty(float)
-    def value(self):
-        return round(self._azimuth, 1)
-    @value.setter
-    def value(self, new_value):
-        self._azimuth = round(new_value, 1)
-        self.update()  # 숫자가 변경될 때 화면 갱신 
+    def add_shortlows(self):
+        painter = QPainter(self.pixmap)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(self.green_color)
+        font = self.font()
+        font.setPointSize(10)
+        painter.setFont(font)
+        # text
+        if self.ani_count == 16:
+            if self.point_bool:
+                painter.drawText(700, 210, 70, 30, Qt.AlignRight | Qt.AlignVCenter, "_")
+                self.point_bool = not self.point_bool
+                return
+        if self.ani_count == -1:
+            self.pixmap.fill(Qt.transparent)
+            self.ani_count += 1
+        else:
+            for angle, shortlow_list in self.hit_table.items():
+                power = self.ani_count - angle
+                if power > 9:
+                    continue
+                level = type(shortlow_list[power])
+                if level == list:
+                    painter.setPen(self.red_color)
+                    draw_string = str(round(shortlow_list[power][0], 1))
+                elif level == str:
+                    painter.setPen(self.yellow_color)
+                    draw_string = shortlow_list[power][:-1]
+                else:
+                    painter.setPen(self.green_color)
+                    draw_string = str(round(shortlow_list[power], 1))
+                print(angle, draw_string)
+                painter.drawText(70*(power+1), 30*(angle+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, draw_string)
+                if power == 0:
+                    break
+            self.ani_count += 1
+        painter.end()
+
+    def update_hit_table(self, new_hit_table_dict):
+        self.hit_table = new_hit_table_dict

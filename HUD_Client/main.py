@@ -13,6 +13,7 @@ from widgets import (LeftLineWidget,
     CompassWidget, 
     AzimuthWidget,
     StatusTextWidget,
+    HitTableWidget,
 )
 from draw_tools import draw_neon_line
 
@@ -73,18 +74,28 @@ class HUDWindow(QWidget):
         self.create_initial_compass_widgets()
 
         # StatusWidget 초기화
-        self.perm_time = 0
         self.status_text_widget = None
         self.status_text = ""
         self.create_initial_status_text_widget()
 
+        # # HitTableWidget 초기화
+        self.hit_table_widget = None
+        self.create_initial_hit_table_widget()
+
         # 타이머 설정
         self.timer1 = QTimer(self)
         self.timer2 = QTimer(self)
+        self.timer3 = QTimer(self)
+
         self.timer1.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
+
         self.timer2.timeout.connect(self.update_status_text)
-        self.timer1.start(333)  # 500ms마다 실행
-        self.timer2.start(111)  # 500ms마다 실행
+
+        self.timer3.timeout.connect(self.update_hit_table)
+
+        self.timer1.start(333)  # 333ms마다 실행
+        self.timer2.start(111)  # 111ms마다 실행
+        self.timer3.start(66)  # 66ms마다 실행, 스캔모드에서 on/off
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -179,6 +190,11 @@ class HUDWindow(QWidget):
         self.status_text_widget = StatusTextWidget("INITIALIZING...", self)
         self.status_text_widget.move(INF_LEFT, 600)
         self.status_text_widget.show()
+
+    def create_initial_hit_table_widget(self):
+        self.hit_table_widget = HitTableWidget(self)
+        self.hit_table_widget.move(INF_RIGHT+200, 230)
+        self.hit_table_widget.hide()
 
     # Update Widgets
     def update_active_widgets(self, shortlow=100, height=0, azimuth=0.0):
@@ -280,11 +296,8 @@ class HUDWindow(QWidget):
         self.ani_group.start()
 
     # HIT TABLE
-    def update_hit_table(self, hit_table):
-        self.hit_table = hit_table
-    
-    def animate_hit_table(self, hit_table):
-        pass
+    def update_hit_table(self):
+        self.hit_table_widget.update()
 
     def cleanup_sl_ht_az_animations(self):
         """애니메이션 그룹을 정리"""
@@ -301,11 +314,16 @@ class HUDWindow(QWidget):
                 # 이건 스캔 동작 상태 조작 로직
                 # self.watch_lock = not self.watch_lock
                 # print("F11 키가 눌렸습니다!", self.watch_lock)
+
                 # 이건 status문자 변경 조작 로직
-                from random import randint
-                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
-                self.status_text = random_list[randint(0, 4)]
-                print("F11 키가 눌렸습니다!", self.status_text)
+                # from random import randint
+                # random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
+                # self.status_text = random_list[randint(0, 4)]
+                # print("F11 키가 눌렸습니다!", self.status_text)
+
+                # 이건 hit table active 로직
+                self.hit_table_widget.ani_count = -1
+                self.hit_table_widget.show()
                 
         except AttributeError:
             pass
@@ -314,6 +332,15 @@ class HUDWindow(QWidget):
         # 키보드 리스너 시작
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
+
+    def load_hit_table(self):
+        '''
+        fix: shortlow, height
+        request 서버
+        json 로드
+        self.hit_table 변경
+        self.hit_table_widget.ani_count = 0
+        '''
 
 if __name__ == '__main__':
     app = QApplication([])
