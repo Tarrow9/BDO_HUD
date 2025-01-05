@@ -12,6 +12,7 @@ from widgets import (LeftLineWidget,
     HeightWidget, 
     CompassWidget, 
     AzimuthWidget,
+    StatusTextWidget,
 )
 from draw_tools import draw_neon_line
 
