@@ -315,7 +315,7 @@ class HitTableWidget(QWidget):
         self.green_color = QColor(0, 255, 0, 255)
         self.yellow_color = QColor(255, 255, 0, 255)
         self.red_color = QColor(255, 0, 0, 255)
-        self.resize(700, 240) # 70px, 30px
+        self.resize(770, 240) # 70px, 30px
 
         self.ani_count = 16
         self.point_bool = False
@@ -379,11 +379,10 @@ class HitTableWidget(QWidget):
                     draw_string = str(round(shortlow_list[power][0], 1))
                 elif level == str:
                     painter.setPen(self.yellow_color)
-                    draw_string = shortlow_list[power][:-1]
+                    draw_string = str(round(float(shortlow_list[power]), 1))
                 else:
                     painter.setPen(self.green_color)
                     draw_string = str(round(shortlow_list[power], 1))
-                print(angle, draw_string)
                 painter.drawText(70*(power+1), 30*(angle+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, draw_string)
                 if power == 0:
                     break
