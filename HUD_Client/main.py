@@ -71,10 +71,19 @@ class HUDWindow(QWidget):
         self.azimuth_widget = None
         self.create_initial_compass_widgets()
 
+        # StatusWidget 초기화
+        self.perm_time = 0
+        self.status_text_widget = None
+        self.status_text = ""
+        self.create_initial_status_text_widget()
+
         # 타이머 설정
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))  # 0.5초마다 update_line_number 호출
-        self.timer.start(333)  # 500ms마다 실행
+        self.timer1 = QTimer(self)
+        self.timer2 = QTimer(self)
+        self.timer1.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
+        self.timer2.timeout.connect(self.update_status_text)
+        self.timer1.start(333)  # 500ms마다 실행
+        self.timer2.start(111)  # 500ms마다 실행
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -163,7 +172,14 @@ class HUDWindow(QWidget):
         self.azimuth_widget = AzimuthWidget(self)
         self.azimuth_widget.move(center_x-self.azimuth_widget.width()//2, 565)
         self.azimuth_widget.show()
-    
+
+    def create_initial_status_text_widget(self):
+        """초기 StatusTextWidget 생성 및 배치"""
+        self.status_text_widget = StatusTextWidget("INITIALIZING...", self)
+        self.status_text_widget.move(INF_LEFT, 600)
+        self.status_text_widget.show()
+
+    # Update Widgets
     def update_active_widgets(self, shortlow=100, height=0, azimuth=0.0):
         # test
         from random import randint, uniform
@@ -211,7 +227,11 @@ class HUDWindow(QWidget):
         left_y_distance = (value_dict['shortlow'] - origin_shortlow) * 3
         right_y_distance = (value_dict['height'] - origin_height) * 3
         self.animate_widget(left_y_distance, right_y_distance, value_dict['shortlow'], value_dict['height'], azimuth)
-    
+
+    def update_status_text(self):
+        self.status_text_widget.animate_text(self.status_text)
+
+    # Animate Widgets
     def animate_widget(self, left_y_distance, right_y_distance, center_shortlow, center_height, azimuth):
         self.ani_group = QParallelAnimationGroup()
         ani_duration = 300

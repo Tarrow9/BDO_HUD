@@ -277,3 +277,65 @@ class AzimuthWidget(QWidget):
     def azimuth(self, new_value):
         self._azimuth = round(new_value, 1)
         self.update()  # 숫자가 변경될 때 화면 갱신 
+
+class StatusTextWidget(QWidget):
+    def __init__(self, text, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.line_color = QColor(0, 255, 0, 192)  # 75% 투명한 초록색
+        self.resize(350, 30)
+
+        # NeonLabel setting
+        self.text = ""
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setFont(self.font())
+        painter.setPen(self.line_color)
+        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, str(self.text))
+
+    def animate_text(self, new_text):
+        if new_text == self.text:
+            self.text += "."
+        elif new_text.startswith(self.text):
+            self.text += new_text[len(self.text)]
+        else:
+            self.text = self.text[:-1]
+        self.update()
+
+    def change_color(self, color):
+        color.setAlpha(192)
+        if self.line_color != color:
+            self.line_color = color
+            self.update()
+
+class HitTableWidget(QWidget):
+    #Dummy
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._azimuth = 0.0
+        self.line_color = QColor(0, 255, 0, 255)  # 50% 투명한 초록색
+        self.resize(100, 100)
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 텍스트 그리기
+        painter.setPen(self.line_color)
+        painter.setFont(self.font())
+        painter.drawText(self.rect(), Qt.AlignCenter | Qt.AlignVCenter, str(round(self._azimuth) % 360))
+
+    def change_color(self, color):
+        color.setAlpha(255)
+        if self.line_color != color:
+            self.line_color = color
+            self.update()
+
+    @pyqtProperty(float)
+    def value(self):
+        return round(self._azimuth, 1)
+    @value.setter
+    def value(self, new_value):
+        self._azimuth = round(new_value, 1)
+        self.update()  # 숫자가 변경될 때 화면 갱신 
