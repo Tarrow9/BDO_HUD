@@ -1,7 +1,7 @@
 import sys, os
 import ctypes
 import threading
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, QPoint, QParallelAnimationGroup, QEasingCurve, QEvent, QObject, pyqtProperty
+from PyQt5.QtCore import QMetaObject, Qt, QTimer
 from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase
 from PyQt5.QtWidgets import QApplication, QWidget
 from pynput import keyboard
@@ -55,20 +55,20 @@ class HUDWindow(QWidget):
         self.setClickThrough()
 
         # LineWidget 리스트 초기화
-        self.watch_lock = False
+        self._scanning_status = False # scan상태 비활성 상태로 윈도우 활성화
+
         self.left_line_widget = None
-        self.center_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
-        self.center_shortlow_widget = None
-        self.shortlow_error = False
         self.right_line_widget = None
-        self.center_height : int = 0  # max: 250 min: -250, center0 = 35*30 - 15
+        self.new_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
+        self.center_shortlow_widget = None
         self.center_height_widget = None
-        self.height_error = False
+        self.new_height : int = 0 # max: 250 min: -250, center0 = 35*30 - 15
+
         self.create_initial_left_widgets()
         self.create_initial_right_widgets()
 
         # CompassWidget 초기화
-        self.azimuth : float = 0.0  # max: 360.0 min: 0.0
+        self.new_azimuth : float = 0.0  # max: 360.0 min: 0.0
         self.compass_widget = None
         self.azimuth_widget = None
         self.create_initial_compass_widgets()
@@ -83,17 +83,30 @@ class HUDWindow(QWidget):
         self.create_initial_hit_table_widget()
 
         # 타이머 설정
-        self.timer1 = QTimer(self)
-        self.timer2 = QTimer(self)
-        self.timer3 = QTimer(self)
+        self.background_value_generator_timer = QTimer(self) # ALWAYS
+        self.background_value_generator_timer.setInterval(333)
+        self.background_value_generator_timer.timeout.connect(self.random_generator)
+        self.background_value_generator_timer.start()
 
-        self.timer1.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
+        self.lr_timer = QTimer(self) # ON / OFF
+        self.lr_timer.setInterval(333)
+        self.lr_timer.timeout.connect(lambda: self.left_line_widget.set_shortlow_start_ani(self.new_shortlow))
+        self.lr_timer.timeout.connect(lambda: self.center_shortlow_widget.set_shortlow_start_ani(self.new_shortlow))
+        self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_height))
+        self.lr_timer.timeout.connect(lambda: self.center_height_widget.set_height_start_ani(self.new_height))
 
-        self.timer2.timeout.connect(self.update_status_text)
-        self.timer2.timeout.connect(self.update_hit_table)
+        self.compass_timer = QTimer(self) # ALWAYS
+        self.compass_timer.setInterval(333)
+        self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
+        self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
+        self.compass_timer.start()
+        # self.lr_timer.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
 
-        self.timer1.start(333)  # 333ms마다 실행
-        self.timer2.start(66)  # 66ms마다 실행
+        self.trigger_timer = QTimer(self) # DURING RUN
+        self.trigger_timer.setInterval(33)
+        self.trigger_timer.timeout.connect(self.update_status_text)
+        self.trigger_timer.timeout.connect(self.update_hit_table)
+        self.trigger_timer.start()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -156,7 +169,7 @@ class HUDWindow(QWidget):
         self.left_line_widget.move(INF_LEFT - self.left_line_widget.width() - t, center_y - 55*30 - 15)
         self.left_line_widget.show()
         """초기 ShortLowWidget 생성 및 배치"""
-        self.center_shortlow_widget = ShortLowWidget(self.center_shortlow, self)
+        self.center_shortlow_widget = ShortLowWidget(self)
         self.center_shortlow_widget.move(INF_LEFT + t + LINE_LEN + 22, center_y - 15)
         self.center_shortlow_widget.show()
 
@@ -168,7 +181,7 @@ class HUDWindow(QWidget):
         self.right_line_widget.move(INF_RIGHT + t, center_y - 35*30 - 15)
         self.right_line_widget.show()
         """초기 HeightWidget 생성 및 배치"""
-        self.center_height_widget = HeightWidget(self.center_height, self)
+        self.center_height_widget = HeightWidget(self)
         self.center_height_widget.move(INF_RIGHT - t - 145, center_y - 15)
         self.center_height_widget.show()
     
@@ -194,136 +207,31 @@ class HUDWindow(QWidget):
         self.hit_table_widget.move(INF_RIGHT+200, 390)
         self.hit_table_widget.hide()
 
-    # Update Widgets
-    def update_active_widgets(self, shortlow=100, height=0, azimuth=0.0):
-        # test
-        from random import randint, uniform
-        shortlow = randint(-100, 600)
-        height = randint(-350, 350)
-        azimuth = round(uniform(0.0, 360.0), 1)
-        ## for real
-        # diagonal = scan_diagonal()
-        # angle = scan_angle()
-        # shortlow = get_l(diagonal, angle)
-        # height = get_h(diagonal, angle)
-        # azimuth = scan_azimuth()
-
-        shortlow_check = 0 < shortlow < 550
-        height_check = -250 < height < 250
-        azimuth_check = True # 화면인식 실패 시
-        check_list = [
-            (shortlow_check, 100),
-            (height_check, 0),
-            (azimuth_check, 0.0),
-        ]
-        value_dict = {
-            'shortlow': shortlow,
-            'height': height,
-            'azimuth': azimuth,
-        }
-        widget_list = [
-            (self.left_line_widget, self.center_shortlow_widget),
-            (self.right_line_widget, self.center_height_widget),
-            (self.compass_widget, self.azimuth_widget),
-        ]
-        for check, key, widgets in zip(check_list, value_dict, widget_list):
-            if not check[0]:
-                color = self._warnining_color
-                value_dict[key] = check[1]
-            else:
-                color = self._base_color
-            for widget in widgets:
-                widget.change_color(color)
-
-        origin_shortlow = self.center_shortlow
-        origin_height = self.center_height
-        self.center_shortlow = value_dict['shortlow']
-        self.center_height = value_dict['height']
-
-        # 방위각 반시계방향 시계방향 계산
-        delta = azimuth - self.azimuth_widget.azimuth
-        azimuth = azimuth-360 if delta > 180 else azimuth+360 if delta < -180 else azimuth
-
-        # 여기서 LineWidget animate
-        left_y_distance = (value_dict['shortlow'] - origin_shortlow) * 3
-        right_y_distance = (value_dict['height'] - origin_height) * 3
-        self.animate_widget(left_y_distance, right_y_distance, value_dict['shortlow'], value_dict['height'], azimuth)
-
     def update_status_text(self):
         self.status_text_widget.animate_text(self.status_text)
-
-    # Animate Widgets
-    def animate_widget(self, left_y_distance, right_y_distance, center_shortlow, center_height, azimuth):
-        self.ani_group = QParallelAnimationGroup()
-        ani_duration = 300
-        if not self.watch_lock:
-            l_line_ani = QPropertyAnimation(self.left_line_widget, b"pos")
-            l_line_ani.setDuration(ani_duration)
-            l_line_ani.setStartValue(self.left_line_widget.pos())
-            l_line_ani.setEndValue(self.left_line_widget.pos() + QPoint(0, left_y_distance))
-            l_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
-            self.ani_group.addAnimation(l_line_ani)
-            short_low_ani = QPropertyAnimation(self.center_shortlow_widget, b"value")
-            short_low_ani.setDuration(ani_duration)
-            short_low_ani.setEasingCurve(QEasingCurve.InOutQuad)
-            short_low_ani.setStartValue(self.center_shortlow_widget.value)
-            short_low_ani.setEndValue(center_shortlow)
-            self.ani_group.addAnimation(short_low_ani)
-
-            r_line_ani = QPropertyAnimation(self.right_line_widget, b"pos")
-            r_line_ani.setDuration(ani_duration)
-            r_line_ani.setStartValue(self.right_line_widget.pos())
-            r_line_ani.setEndValue(self.right_line_widget.pos() + QPoint(0, right_y_distance))
-            r_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
-            self.ani_group.addAnimation(r_line_ani)
-            height_ani = QPropertyAnimation(self.center_height_widget, b"value")
-            height_ani.setDuration(ani_duration)
-            height_ani.setEasingCurve(QEasingCurve.InOutQuad)
-            height_ani.setStartValue(self.center_height_widget.value)
-            height_ani.setEndValue(center_height)
-            self.ani_group.addAnimation(height_ani)
-
-        azimuth_ani = QPropertyAnimation(self.azimuth_widget, b"azimuth")
-        azimuth_ani.setDuration(ani_duration)
-        azimuth_ani.setEasingCurve(QEasingCurve.InOutQuad)
-        azimuth_ani.setStartValue(self.azimuth_widget.azimuth)
-        azimuth_ani.setEndValue(azimuth)
-        self.ani_group.addAnimation(azimuth_ani)
-        compass_ani = QPropertyAnimation(self.compass_widget, b"rotation")
-        compass_ani.setDuration(ani_duration)
-        compass_ani.setEasingCurve(QEasingCurve.InOutQuad)
-        compass_ani.setStartValue(self.compass_widget.rotation)
-        compass_ani.setEndValue(azimuth)
-        self.ani_group.addAnimation(compass_ani)
-
-        self.ani_group.finished.connect(self.cleanup_sl_ht_az_animations)
-        self.ani_group.start()
 
     # HIT TABLE
     def update_hit_table(self):
         self.hit_table_widget.update()
-
-    def cleanup_sl_ht_az_animations(self):
-        """애니메이션 그룹을 정리"""
-        if self.ani_group:
-            self.ani_group.clear()  # 모든 애니메이션 제거
-            self.ani_group = None
-        self.azimuth_widget.azimuth %= 360
-        self.compass_widget.rotation %= 360
 
     ## Key Actions
     def on_press(self, key):
         try:
             if key == keyboard.Key.f9:
                 # 이건 스캔 동작 상태 조작 로직
-                self.watch_lock = not self.watch_lock
-                print("F11 키가 눌렸습니다!", self.watch_lock)
+                self._scanning_status = not self._scanning_status
+                print("F9: timer 333 triger", self._scanning_status)
+                if self._scanning_status:
+                    QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
+                else:
+                    QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
             if key == keyboard.Key.f10:
                 # 이건 status문자 변경 조작 로직
                 from random import randint
                 random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
                 self.status_text = random_list[randint(0, 4)]
                 print("F11 키가 눌렸습니다!", self.status_text)
+
             if key == keyboard.Key.f11:
                 # 이건 hit table active 로직
                 self.hit_table_widget.ani_count = -1
@@ -336,6 +244,13 @@ class HUDWindow(QWidget):
         # 키보드 리스너 시작
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
+    
+    ## For Test
+    def random_generator(self):
+        from random import randint, uniform
+        self.new_shortlow = randint(-100, 600)
+        self.new_height = randint(-350, 350)
+        self.new_azimuth = round(uniform(0.0, 360.0), 1)
 
     def load_hit_table(self):
         '''

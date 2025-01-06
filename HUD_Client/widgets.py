@@ -1,6 +1,6 @@
 import math
 
-from PyQt5.QtCore import Qt, QPoint, pyqtProperty
+from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve
 from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel
 
@@ -17,6 +17,10 @@ class LeftLineWidget(QLabel):
         self.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.resize(100, 2400)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)
+
+        self.l_line_ani = None
+        self._default_shortlow = 100
+        self.shortlow = self._default_shortlow
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -37,8 +41,26 @@ class LeftLineWidget(QLabel):
             else:
                 painter.drawLine(70, target_y, 90, target_y)
     
+    def set_shortlow_start_ani(self, new_shortlow):
+        if not (0 < new_shortlow < 550):
+            new_shortlow = self._default_shortlow
+            self.change_color(QColor(255, 0, 0, 218))
+        else:
+            self.change_color(QColor(0, 255, 0, 218))
+        
+        if self.l_line_ani is None:
+            self.l_line_ani = QPropertyAnimation(self, b"pos")
+        if self.l_line_ani.state() == QPropertyAnimation.Running:
+            return
+        self.l_line_ani.setDuration(300)
+        self.l_line_ani.setStartValue(self.pos())
+        self.l_line_ani.setEndValue(self.pos() + QPoint(0, (new_shortlow - self.shortlow)*3))
+        self.l_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.l_line_ani.start()
+        self.shortlow = new_shortlow
+    
     def change_color(self, color):
-        color.setAlpha(192)
+        color.setAlpha(218)
         if self.line_color != color:
             self.line_color = color
             self.update()
@@ -49,6 +71,10 @@ class RightLineWidget(QLabel):
         self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.resize(150, 2100)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)  # 50% 투명한 초록색
+
+        self.r_line_ani = None
+        self._default_height = 0
+        self._height = self._default_height
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -70,27 +96,47 @@ class RightLineWidget(QLabel):
                 # 짧은 선 그리기
                 painter.drawLine(10, target_y, 30, target_y)
     
+    def set_height_start_ani(self, new_height):
+        if not (-250 < new_height < 250):
+            new_height = self._default_height
+            self.change_color(QColor(255, 0, 0, 218))
+        else:
+            self.change_color(QColor(0, 255, 0, 218))
+        
+        if self.r_line_ani is None:
+            self.r_line_ani = QPropertyAnimation(self, b"pos")
+        if self.r_line_ani.state() == QPropertyAnimation.Running:
+            return
+        self.r_line_ani.setDuration(300)
+        self.r_line_ani.setStartValue(self.pos())
+        self.r_line_ani.setEndValue(self.pos() + QPoint(0, (new_height - self._height)*3))
+        self.r_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.r_line_ani.start()
+        self._height = new_height
+    
     def change_color(self, color):
-        color.setAlpha(192)
+        color.setAlpha(218)
         if self.line_color != color:
             self.line_color = color
             self.update()
 
 class ShortLowWidget(QWidget):
-    def __init__(self, center_shortlow, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.center_shortlow = center_shortlow
-        self.line_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
+        self._default_shortlow = 100
+        self._shortlow = self._default_shortlow
+        self.line_color = QColor(0, 255, 0, 218)
+        self.short_low_ani = None
         
     def paintEvent(self, event):
-        self.line_color.setAlpha(192)
+        self.line_color.setAlpha(218)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
         # 텍스트 그리기
         painter.setPen(self.line_color)
         painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, str(self.center_shortlow))
+        painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, str(self._shortlow))
     
     def change_color(self, color):
         color.setAlpha(192)
@@ -98,22 +144,42 @@ class ShortLowWidget(QWidget):
             self.line_color = color
             self.update()
     
+    def set_shortlow_start_ani(self, new_shortlow):
+        if not (0 < new_shortlow < 550):
+            new_shortlow = self._default_shortlow
+            self.change_color(QColor(255, 0, 0, 218))
+        else:
+            self.change_color(QColor(0, 255, 0, 218))
+
+        if self.short_low_ani is None:
+            self.short_low_ani = QPropertyAnimation(self, b"shortlow")
+        if self.short_low_ani.state() == QPropertyAnimation.Running:
+            return
+        self.short_low_ani.setDuration(300)
+        self.short_low_ani.setStartValue(self._shortlow)
+        self.short_low_ani.setEndValue(new_shortlow)
+        self.short_low_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.short_low_ani.start()
+        self._shortlow = new_shortlow
+    
     @pyqtProperty(int)
-    def value(self):
-        return self.center_shortlow
-    @value.setter
-    def value(self, new_value):
-        self.center_shortlow = new_value
+    def shortlow(self):
+        return self._shortlow
+    @shortlow.setter
+    def shortlow(self, new_shortlow):
+        self._shortlow = new_shortlow
         self.update()  # 숫자가 변경될 때 화면 갱신
 
 class HeightWidget(QWidget):
-    def __init__(self, height, *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._height = height
-        self.line_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
-        
+        self._default_height = 0
+        self._height = self._default_height
+        self.line_color = QColor(0, 255, 0, 218)
+        self.height_ani = None
+
     def paintEvent(self, event):
-        self.line_color.setAlpha(192)
+        self.line_color.setAlpha(218)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
 
@@ -123,17 +189,35 @@ class HeightWidget(QWidget):
         painter.drawText(self.rect(), Qt.AlignRight | Qt.AlignVCenter, str(self._height/10))
     
     def change_color(self, color):
-        color.setAlpha(192)
+        color.setAlpha(218)
         if self.line_color != color:
             self.line_color = color
             self.update()
     
+    def set_height_start_ani(self, new_height):
+        if not (-250 < new_height < 250):
+            new_height = self._default_height
+            self.change_color(QColor(255, 0, 0, 218))
+        else:
+            self.change_color(QColor(0, 255, 0, 218))
+
+        if self.height_ani is None:
+            self.height_ani = QPropertyAnimation(self, b"height")
+        if self.height_ani.state() == QPropertyAnimation.Running:
+            return
+        self.height_ani.setDuration(300)
+        self.height_ani.setStartValue(self._height)
+        self.height_ani.setEndValue(new_height)
+        self.height_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.height_ani.start()
+        self.center_shortlow = new_height
+    
     @pyqtProperty(int)
-    def value(self):
+    def height(self):
         return self._height
-    @value.setter
-    def value(self, new_value):
-        self._height = new_value
+    @height.setter
+    def height(self, new_height):
+        self._height = new_height
         self.update()  # 숫자가 변경될 때 화면 갱신
 
 class HidingWidget(QWidget):
@@ -233,6 +317,22 @@ class CompassWidget(QWidget):
                 str((i + 11) % 12 + 1)  # 시각 계산 (1부터 12까지)
             )
             painter.restore()  # 이전 상태 복원
+    
+    def set_rotation_start_ani(self, new_rotation):
+        # 회전각 재계산
+        delta = new_rotation - self.rotation
+        new_rotation = new_rotation-360 if delta > 180 else new_rotation+360 if delta < -180 else new_rotation
+
+        if not hasattr(self, "compass_ani"):
+            self.compass_ani = QPropertyAnimation(self, b"rotation")
+        if self.compass_ani.state() == QPropertyAnimation.Running:
+            return
+        self.compass_ani.setDuration(300)
+        self.compass_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.compass_ani.setStartValue(self.rotation)
+        self.compass_ani.setEndValue(new_rotation)
+        self.compass_ani.start()
+        self.rotation %= 360
 
     # 회전을 위한 프로퍼티
     @pyqtProperty(float)
@@ -269,6 +369,22 @@ class AzimuthWidget(QWidget):
         if self.line_color != color:
             self.line_color = color
             self.update()
+    
+    def set_azimuth_start_ani(self, new_azimuth):
+        # 방위각 재계산
+        delta = new_azimuth - self.azimuth
+        new_azimuth = new_azimuth-360 if delta > 180 else new_azimuth+360 if delta < -180 else new_azimuth
+
+        if not hasattr(self, "azimuth_ani"):
+            self.azimuth_ani = QPropertyAnimation(self, b"azimuth")
+        if self.azimuth_ani.state() == QPropertyAnimation.Running:
+            return
+        self.azimuth_ani.setDuration(300)
+        self.azimuth_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.azimuth_ani.setStartValue(self.azimuth)
+        self.azimuth_ani.setEndValue(new_azimuth)
+        self.azimuth_ani.start()
+        self.azimuth %= 360
 
     @pyqtProperty(float)
     def azimuth(self):
