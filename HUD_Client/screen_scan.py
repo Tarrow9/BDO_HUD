@@ -19,8 +19,9 @@ class WorkerThread(QThread):
         while True:
             if self.running:
                 self.update_signal.emit("Running...")  # UI에 전달
-                time.sleep(1)  # 작업 반복
+                time.sleep(0.1)  # 작업 반복
             else:
+                self.update_signal.emit("")  # UI에 전달
                 time.sleep(0.1)  # 잠시 대기
 
     def start_work(self):
