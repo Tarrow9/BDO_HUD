@@ -1,6 +1,6 @@
 import math
 
-from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve
+from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer
 from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel
 
@@ -15,7 +15,7 @@ class LeftLineWidget(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.resize(100, 2400)  # 위젯 크기 설정
+        self.resize(120, 2400)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)
 
         self.l_line_ani = None
@@ -400,8 +400,13 @@ class StatusTextWidget(QWidget):
         self.line_color = QColor(0, 255, 0, 192)  # 75% 투명한 초록색
         self.resize(350, 30)
 
+        self.widget_timer_33_150 = QTimer(self) # DURING RUN
+        self.widget_timer_33_150.setInterval(150)
+        self.widget_timer_33_150.timeout.connect(self.animate_text)
+        self.widget_timer_33_150.start()
         # NeonLabel setting
-        self.text = ""
+        self.text = "CONNECTTING..."
+        self.new_text = "CONNECTTING..."
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -409,14 +414,28 @@ class StatusTextWidget(QWidget):
         painter.setFont(self.font())
         painter.setPen(self.line_color)
         painter.drawText(self.rect(), Qt.AlignLeft | Qt.AlignVCenter, str(self.text))
+    
+    def animate_underscore(self):
+        self.text += "_"
 
-    def animate_text(self, new_text):
-        if new_text == self.text:
-            self.text += "."
-        elif new_text.startswith(self.text):
-            self.text += new_text[len(self.text)]
+    def animate_text(self):
+        # 완성
+        if self.text in [self.new_text, self.new_text + '_']:
+            if self.widget_timer_33_150.interval() == 33:
+                self.widget_timer_33_150.setInterval(150)
+            if self.text == self.new_text:
+                self.text += "_"
+            else:
+                self.text = self.text[:-1]
+        # 업데이트중
         else:
-            self.text = self.text[:-1]
+            if self.widget_timer_33_150.interval() == 150:
+                self.widget_timer_33_150.setInterval(33)
+            
+            if self.new_text.startswith(self.text):
+                self.text += self.new_text[len(self.text)]
+            else:
+                self.text = self.text[:-1]
         self.update()
 
     def change_color(self, color):
@@ -431,7 +450,7 @@ class HitTableWidget(QWidget):
         self.green_color = QColor(0, 255, 0, 255)
         self.yellow_color = QColor(255, 255, 0, 255)
         self.red_color = QColor(255, 0, 0, 255)
-        self.resize(770, 240) # 70px, 30px
+        self.resize(790, 240) # 70px, 30px
 
         self.ani_count = 16
         self.point_bool = False
@@ -448,62 +467,78 @@ class HitTableWidget(QWidget):
 
         self.pixmap = QPixmap(self.size())  # QPixmap 버퍼 생성
         self.pixmap.fill(Qt.transparent)  # 초기화
+
+        self.widget_timer_33_150 = QTimer(self) # DURING RUN
+        self.widget_timer_33_150.setInterval(150)
+        self.widget_timer_33_150.timeout.connect(self.update)
+        self.widget_timer_33_150.start()
         
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        # baseline
+        # base painter
         painter.setPen(self.green_color)
         font = self.font()
         font.setPointSize(10)
         painter.setFont(font)
+        # base
+        self.draw_base_row_col(painter)
+        
+        # update values
+        painter.drawPixmap(0, 0, self.pixmap)
+        self.add_shortlows()
+    
+    def draw_base_row_col(self, painter):
+        # baseline
         painter.drawLine(0, 30, 770, 30)
         painter.drawLine(70, 0, 70, 240)
-
+        # row column
         for c in range(0, 10):
             painter.drawText(70*(c+1), 0, 70, 30, Qt.AlignCenter | Qt.AlignVCenter, f"{c*10}~{(c+1)*10}")
         for r in range(7):
             painter.drawText(0, 30*(r+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, str(r))
 
-        painter.drawPixmap(0, 0, self.pixmap)
-        self.add_shortlows()
-
     def add_shortlows(self):
-        painter = QPainter(self.pixmap)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(self.green_color)
-        font = self.font()
-        font.setPointSize(10)
-        painter.setFont(font)
         # text
         if self.ani_count == 16:
+            painter = QPainter(self)
+            font = self.font()
+            font.setPointSize(10)
+            painter.setFont(font)
+            painter.setPen(self.green_color)
+            if self.widget_timer_33_150.interval() == 33:
+                self.widget_timer_33_150.setInterval(150)
             if self.point_bool:
-                painter.drawText(700, 210, 70, 30, Qt.AlignRight | Qt.AlignVCenter, "_")
-                self.point_bool = not self.point_bool
-                return
-        if self.ani_count == -1:
-            self.pixmap.fill(Qt.transparent)
-            self.ani_count += 1
+                painter.drawText(750, 210, 20, 30, Qt.AlignRight | Qt.AlignVCenter, "_")
+            self.point_bool = not self.point_bool
+            return
         else:
-            for angle, shortlow_list in self.hit_table.items():
-                power = self.ani_count - angle
-                if power > 9:
-                    continue
-                level = type(shortlow_list[power])
-                if level == list:
-                    painter.setPen(self.red_color)
-                    draw_string = str(round(shortlow_list[power][0], 1))
-                elif level == str:
-                    painter.setPen(self.yellow_color)
-                    draw_string = str(round(float(shortlow_list[power]), 1))
-                else:
-                    painter.setPen(self.green_color)
-                    draw_string = str(round(shortlow_list[power], 1))
-                painter.drawText(70*(power+1), 30*(angle+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, draw_string)
-                if power == 0:
-                    break
+            painter = QPainter(self.pixmap)
+            painter.setRenderHint(QPainter.Antialiasing)
+            painter.setPen(self.green_color)
+            font = self.font()
+            font.setPointSize(10)
+            painter.setFont(font)
+            if self.ani_count == -1:
+                self.pixmap.fill(Qt.transparent)
+                self.widget_timer_33_150.setInterval(33)
+            else:
+                for angle, shortlow_list in self.hit_table.items():
+                    power = self.ani_count - angle
+                    if power > 9:
+                        continue
+                    level = type(shortlow_list[power])
+                    if level == list:
+                        painter.setPen(self.red_color)
+                        draw_string = str(round(shortlow_list[power][0], 1))
+                    elif level == str:
+                        painter.setPen(self.yellow_color)
+                        draw_string = str(round(float(shortlow_list[power]), 1))
+                    else:
+                        painter.setPen(self.green_color)
+                        draw_string = str(round(shortlow_list[power], 1))
+                    painter.drawText(70*(power+1), 30*(angle+1), 70, 30, Qt.AlignCenter | Qt.AlignVCenter, draw_string)
+                    if power == 0:
+                        break
             self.ani_count += 1
         painter.end()
-
-    def update_hit_table(self, new_hit_table_dict):
-        self.hit_table = new_hit_table_dict

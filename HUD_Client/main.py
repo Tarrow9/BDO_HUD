@@ -75,7 +75,6 @@ class HUDWindow(QWidget):
 
         # StatusWidget 초기화
         self.status_text_widget = None
-        self.status_text = ""
         self.create_initial_status_text_widget()
 
         # # HitTableWidget 초기화
@@ -100,13 +99,6 @@ class HUDWindow(QWidget):
         self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
         self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
         self.compass_timer.start()
-        # self.lr_timer.timeout.connect(lambda: self.update_active_widgets(shortlow=100, height=0))
-
-        self.trigger_timer = QTimer(self) # DURING RUN
-        self.trigger_timer.setInterval(33)
-        self.trigger_timer.timeout.connect(self.update_status_text)
-        self.trigger_timer.timeout.connect(self.update_hit_table)
-        self.trigger_timer.start()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -204,16 +196,19 @@ class HUDWindow(QWidget):
 
     def create_initial_hit_table_widget(self):
         self.hit_table_widget = HitTableWidget(self)
-        self.hit_table_widget.move(INF_RIGHT+200, 390)
+        self.hit_table_widget.move(INF_RIGHT+180, 390)
         self.hit_table_widget.hide()
 
-    def update_status_text(self):
-        self.status_text_widget.animate_text(self.status_text)
-
-    # HIT TABLE
-    def update_hit_table(self):
-        self.hit_table_widget.update()
-
+    # hit table handling
+    def hit_table_on(self):
+        # self.hit_table_widget.hit_table = {}
+        self.hit_table_widget.show()
+        self.hit_table_widget.ani_count = -1
+        print("F11: ", self.hit_table_widget.hit_table_status)
+    def hit_table_off(self):
+        self.hit_table_widget.hide()
+        self.hit_table_widget.pixmap.fill(Qt.transparent)
+    
     ## Key Actions
     def on_press(self, key):
         try:
@@ -225,18 +220,21 @@ class HUDWindow(QWidget):
                     QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
                 else:
                     QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
+            
             if key == keyboard.Key.f10:
                 # 이건 status문자 변경 조작 로직
                 from random import randint
                 random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
-                self.status_text = random_list[randint(0, 4)]
-                print("F11 키가 눌렸습니다!", self.status_text)
-
+                self.status_text_widget.new_text = random_list[randint(0, 4)]
+                print("F10: ", self.status_text_widget.new_text)
+            
+            # hit table update
             if key == keyboard.Key.f11:
-                # 이건 hit table active 로직
-                self.hit_table_widget.ani_count = -1
-                self.hit_table_widget.show()
-                
+                self.hit_table_on()
+            
+            if key == keyboard.Key.f12:
+                self.hit_table_off()
+            
         except AttributeError:
             pass
 

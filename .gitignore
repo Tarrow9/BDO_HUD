@@ -1,5 +1,6 @@
 .venv
 .cannoncalc
+.vscode
 Calc_Server
 data/
 
