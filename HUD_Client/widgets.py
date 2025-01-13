@@ -69,12 +69,12 @@ class RightLineWidget(QLabel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.resize(150, 2100)  # 위젯 크기 설정
+        self.resize(150, 3600)  # 위젯 크기 설정
         self.line_color = QColor(0, 255, 0, 218)  # 50% 투명한 초록색
 
         self.r_line_ani = None
-        self._default_height = 0
-        self._height = self._default_height
+        self._default_cn_angle = 0
+        self.cn_angle = self._default_cn_angle
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -85,7 +85,7 @@ class RightLineWidget(QLabel):
         pen.setWidth(2)
         painter.setPen(pen)
 
-        for i, line_number in enumerate(range(350, -360, -10)):
+        for i, line_number in enumerate(range(600, -610, -10)):
             target_y = (i * 30) + 15
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
@@ -96,9 +96,9 @@ class RightLineWidget(QLabel):
                 # 짧은 선 그리기
                 painter.drawLine(10, target_y, 30, target_y)
     
-    def set_height_start_ani(self, new_height):
-        if not (-450 < new_height < 450):
-            new_height = self._default_height
+    def set_height_start_ani(self, new_cn_angle):
+        if not (-450 < new_cn_angle < 450):
+            new_cn_angle = self._default_cn_angle
             self.change_color(QColor(255, 0, 0, 218))
         else:
             self.change_color(QColor(0, 255, 0, 218))
@@ -109,10 +109,10 @@ class RightLineWidget(QLabel):
             return
         self.r_line_ani.setDuration(300)
         self.r_line_ani.setStartValue(self.pos())
-        self.r_line_ani.setEndValue(self.pos() + QPoint(0, (new_height - self._height)*3))
+        self.r_line_ani.setEndValue(self.pos() + QPoint(0, (new_cn_angle - self.cn_angle)*3))
         self.r_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
         self.r_line_ani.start()
-        self._height = new_height
+        self.cn_angle = new_cn_angle
     
     def change_color(self, color):
         color.setAlpha(218)
@@ -170,13 +170,13 @@ class ShortLowWidget(QWidget):
         self._shortlow = new_shortlow
         self.update()  # 숫자가 변경될 때 화면 갱신
 
-class HeightWidget(QWidget):
+class CNAngleWidget(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._default_height = 0
-        self._height = self._default_height
+        self._default_cn_angle = 0
+        self._cn_angle = self._default_cn_angle
         self.line_color = QColor(0, 255, 0, 218)
-        self.height_ani = None
+        self.cn_angle_ani = None
 
     def paintEvent(self, event):
         self.line_color.setAlpha(218)
@@ -186,7 +186,7 @@ class HeightWidget(QWidget):
         # 텍스트 그리기
         painter.setPen(self.line_color)
         painter.setFont(self.font())
-        painter.drawText(self.rect(), Qt.AlignRight | Qt.AlignVCenter, str(self._height/10))
+        painter.drawText(self.rect(), Qt.AlignRight | Qt.AlignVCenter, str(self._cn_angle/10))
     
     def change_color(self, color):
         color.setAlpha(218)
@@ -194,30 +194,30 @@ class HeightWidget(QWidget):
             self.line_color = color
             self.update()
     
-    def set_height_start_ani(self, new_height):
-        if not (-450 < new_height < 450):
-            new_height = self._default_height
+    def set_height_start_ani(self, new_cn_angle):
+        if not (-450 < new_cn_angle < 450):
+            new_cn_angle = self._default_cn_angle
             self.change_color(QColor(255, 0, 0, 218))
         else:
             self.change_color(QColor(0, 255, 0, 218))
 
-        if self.height_ani is None:
-            self.height_ani = QPropertyAnimation(self, b"height")
-        if self.height_ani.state() == QPropertyAnimation.Running:
+        if self.cn_angle_ani is None:
+            self.cn_angle_ani = QPropertyAnimation(self, b"cn_angle")
+        if self.cn_angle_ani.state() == QPropertyAnimation.Running:
             return
-        self.height_ani.setDuration(300)
-        self.height_ani.setStartValue(self._height)
-        self.height_ani.setEndValue(new_height)
-        self.height_ani.setEasingCurve(QEasingCurve.InOutQuad)
-        self.height_ani.start()
-        self.center_shortlow = new_height
+        self.cn_angle_ani.setDuration(300)
+        self.cn_angle_ani.setStartValue(self._cn_angle)
+        self.cn_angle_ani.setEndValue(new_cn_angle)
+        self.cn_angle_ani.setEasingCurve(QEasingCurve.InOutQuad)
+        self.cn_angle_ani.start()
+        self._cn_angle = new_cn_angle
     
     @pyqtProperty(int)
-    def height(self):
-        return self._height
-    @height.setter
-    def height(self, new_height):
-        self._height = new_height
+    def cn_angle(self):
+        return self._cn_angle
+    @cn_angle.setter
+    def cn_angle(self, new_cn_angle):
+        self._cn_angle = new_cn_angle
         self.update()  # 숫자가 변경될 때 화면 갱신
 
 class HidingWidget(QWidget):

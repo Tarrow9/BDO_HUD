@@ -9,7 +9,7 @@ from pynput import keyboard
 from widgets import (LeftLineWidget, 
     RightLineWidget, 
     ShortLowWidget, 
-    HeightWidget, 
+    CNAngleWidget, 
     CompassWidget, 
     AzimuthWidget,
     StatusTextWidget,
@@ -61,8 +61,8 @@ class HUDWindow(QWidget):
         self.right_line_widget = None
         self.new_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
         self.center_shortlow_widget = None
-        self.center_height_widget = None
-        self.new_height : int = 0 # max: 250 min: -250, center0 = 35*30 - 15
+        self.center_cn_angle_widget = None
+        self.new_cannon_angle : int = 0 # max: 250 min: -250, center0 = 35*30 - 15
 
         self.create_initial_left_widgets()
         self.create_initial_right_widgets()
@@ -83,7 +83,7 @@ class HUDWindow(QWidget):
 
         # 타이머 설정
         self.background_value_generator_timer = QTimer(self) # ALWAYS
-        self.background_value_generator_timer.setInterval(333)
+        self.background_value_generator_timer.setInterval(500)
         self.background_value_generator_timer.timeout.connect(self.random_generator)
         self.background_value_generator_timer.start()
 
@@ -91,8 +91,8 @@ class HUDWindow(QWidget):
         self.lr_timer.setInterval(333)
         self.lr_timer.timeout.connect(lambda: self.left_line_widget.set_shortlow_start_ani(self.new_shortlow))
         self.lr_timer.timeout.connect(lambda: self.center_shortlow_widget.set_shortlow_start_ani(self.new_shortlow))
-        self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_height))
-        self.lr_timer.timeout.connect(lambda: self.center_height_widget.set_height_start_ani(self.new_height))
+        self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_cannon_angle))
+        self.lr_timer.timeout.connect(lambda: self.center_cn_angle_widget.set_height_start_ani(self.new_cannon_angle))
 
         self.compass_timer = QTimer(self) # ALWAYS
         self.compass_timer.setInterval(333)
@@ -170,12 +170,12 @@ class HUDWindow(QWidget):
         center_y = self.height() // 2 # 중앙 y 좌표
         t = 2
         self.right_line_widget = RightLineWidget(self)
-        self.right_line_widget.move(INF_RIGHT + t, center_y - 35*30 - 15)
+        self.right_line_widget.move(INF_RIGHT + t, center_y - 60*30 - 15)
         self.right_line_widget.show()
-        """초기 HeightWidget 생성 및 배치"""
-        self.center_height_widget = HeightWidget(self)
-        self.center_height_widget.move(INF_RIGHT - t - 145, center_y - 15)
-        self.center_height_widget.show()
+        """초기 CNAngleWidget 생성 및 배치"""
+        self.center_cn_angle_widget = CNAngleWidget(self)
+        self.center_cn_angle_widget.move(INF_RIGHT - t - 145, center_y - 15)
+        self.center_cn_angle_widget.show()
     
     def create_initial_compass_widgets(self):
         """초기 CompassWidget 생성 및 배치"""
@@ -247,7 +247,7 @@ class HUDWindow(QWidget):
     def random_generator(self):
         from random import randint, uniform
         self.new_shortlow = randint(-100, 600)
-        self.new_height = randint(-350, 350)
+        self.new_cannon_angle = randint(-600, 600)
         self.new_azimuth = round(uniform(0.0, 360.0), 1)
 
     def load_hit_table(self):
