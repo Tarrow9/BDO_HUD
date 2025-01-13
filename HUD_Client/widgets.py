@@ -97,7 +97,7 @@ class RightLineWidget(QLabel):
                 painter.drawLine(10, target_y, 30, target_y)
     
     def set_height_start_ani(self, new_height):
-        if not (-250 < new_height < 250):
+        if not (-450 < new_height < 450):
             new_height = self._default_height
             self.change_color(QColor(255, 0, 0, 218))
         else:
@@ -195,7 +195,7 @@ class HeightWidget(QWidget):
             self.update()
     
     def set_height_start_ani(self, new_height):
-        if not (-250 < new_height < 250):
+        if not (-450 < new_height < 450):
             new_height = self._default_height
             self.change_color(QColor(255, 0, 0, 218))
         else:
