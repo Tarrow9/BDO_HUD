@@ -35,9 +35,9 @@ class LeftLineWidget(QLabel):
             target_y = (i*30)+15
             if line_number % 100 == 0:
                 # 100의 배수인 경우: 중앙(50, 15)에서 오른쪽 끝(100, 15)까지 선 그리기
-                painter.drawLine(50, target_y, 100, target_y)
+                painter.drawLine(60, target_y, 100, target_y)
                 painter.setFont(self.font())
-                painter.drawText(0, target_y-15, 50, 30, Qt.AlignLeft | Qt.AlignVCenter, str(line_number))
+                painter.drawText(0, target_y-15, 60, 30, Qt.AlignLeft | Qt.AlignVCenter, str(line_number))
             else:
                 painter.drawLine(70, target_y, 90, target_y)
     
