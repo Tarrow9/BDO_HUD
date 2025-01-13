@@ -262,10 +262,6 @@ class CompassWidget(QWidget):
         center = self.rect().center()
         radius = min(self.width(), self.height()) // 2 - 10
 
-        # 외곽 원 그리기
-        painter.setPen(QPen(QColor(0, 0, 0, 0), 2))
-        painter.drawEllipse(center, radius, radius)
-
         # 회전 중심 이동
         painter.translate(center)  # 중심을 (125, 125)로 설정, 이때 (0, 0) 기준
         # 회전 적용
@@ -542,3 +538,21 @@ class HitTableWidget(QWidget):
                         break
             self.ani_count += 1
         painter.end()
+
+class ScanAreaWidget(QWidget):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.resize(200, 450)  # 위젯 크기 설정
+        self.line_color = QColor(0, 255, 0, 218)
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
+
+        left_x = INF_LEFT+130
+        right_x = INF_LEFT+350
+        top = 50
+        bottom = 500
+        draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
+        draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
+        draw_neon_line(painter, 2, 448, 198, 448, 2, 64)
+        draw_neon_line(painter, 2, 2, 2, 448, 2, 64)

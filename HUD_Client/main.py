@@ -14,6 +14,7 @@ from widgets import (LeftLineWidget,
     AzimuthWidget,
     StatusTextWidget,
     HitTableWidget,
+    ScanAreaWidget,
 )
 from draw_tools import draw_neon_line
 from tools import Cannon
@@ -82,6 +83,10 @@ class HUDWindow(QWidget):
         # # HitTableWidget 초기화
         self.hit_table_widget = None
         self.create_initial_hit_table_widget()
+
+        # Scan Widgets 초기화
+        self.scan_area_widget = None
+        self.create_initial_scan_area_widget()
 
         # 타이머 설정
         self.background_value_generator_timer = QTimer(self) # ALWAYS
@@ -201,9 +206,15 @@ class HUDWindow(QWidget):
         self.hit_table_widget.move(INF_RIGHT+180, 390)
         self.hit_table_widget.hide()
 
+    def create_initial_scan_area_widget(self):
+        self.scan_area_widget = ScanAreaWidget(self)
+        self.scan_area_widget.move(INF_LEFT+130, 50)
+        self.scan_area_widget.hide()
+
     # hit table handling
     def hit_table_fix(self):
         # lr_line stop
+        self.scan_area_widget.hide()
         QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
         # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
         QMetaObject.invokeMethod(self.background_value_generator_timer, "stop", Qt.QueuedConnection)
@@ -232,6 +243,7 @@ class HUDWindow(QWidget):
         # start scanning
         self.status_text_widget.change_color(self._base_color)
         self.status_text_widget.new_text = "SCANNING..."
+        self.scan_area_widget.show()
         QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
         # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
         QMetaObject.invokeMethod(self.background_value_generator_timer, "start", Qt.QueuedConnection)
