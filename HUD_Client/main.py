@@ -16,6 +16,7 @@ from widgets import (LeftLineWidget,
     HitTableWidget,
 )
 from draw_tools import draw_neon_line
+from tools import Cannon
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
@@ -26,6 +27,7 @@ class HUDWindow(QWidget):
     ## Initializings
     def __init__(self):
         super().__init__()
+        self.cannon = Cannon()
 
         # 윈도우 설정
         self.setWindowFlags(
@@ -200,12 +202,50 @@ class HUDWindow(QWidget):
         self.hit_table_widget.hide()
 
     # hit table handling
-    def hit_table_on(self):
-        # self.hit_table_widget.hit_table = {}
+    def hit_table_fix(self):
+        # lr_line stop
+        QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
+        # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
+        QMetaObject.invokeMethod(self.background_value_generator_timer, "stop", Qt.QueuedConnection)
+        shortlow_check = 0 < self.new_shortlow < 550
+        height_check = -450 < self.new_cannon_angle < 450
+        if not (shortlow_check and height_check):
+            self.status_text_widget.change_color(self._warnining_color)
+            self.status_text_widget.new_text = "CRITICAL ERROR"
+            return
+
+        # cannon calc
+        new_hit_table = self.cannon.setting_hit_table(self.new_cannon_angle/10, self.new_shortlow)
+        print(self.new_cannon_angle/10, self.new_shortlow)
+        import time
+        time.sleep(0.3)
+
+        self.status_text_widget.change_color(self._base_color)
+        self.status_text_widget.new_text = "FIXED"
+
+        self.hit_table_widget.hit_table = new_hit_table
         self.hit_table_widget.show()
         self.hit_table_widget.ani_count = -1
-        print("F11: ", self.hit_table_widget.hit_table_status)
+        print("F11")
+    # scan shortlow, height
+    def hit_table_scanning(self):
+        # start scanning
+        self.status_text_widget.change_color(self._base_color)
+        self.status_text_widget.new_text = "SCANNING..."
+        QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
+        # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
+        QMetaObject.invokeMethod(self.background_value_generator_timer, "start", Qt.QueuedConnection)
+
+        # self.new_shortlow = randint(-100, 600)
+        # self.new_cannon_angle = randint(-350, 350) # *10한 int로 주기
+    # just hide widget
     def hit_table_off(self):
+        if True:
+            self.status_text_widget.change_color(self._base_color)
+            self.status_text_widget.new_text = "ONLINE"
+        else:
+            self.status_text_widget.change_color(self._warnining_color)
+            self.status_text_widget.new_text = "OFFLINE"
         self.hit_table_widget.hide()
         self.hit_table_widget.pixmap.fill(Qt.transparent)
     
@@ -213,13 +253,7 @@ class HUDWindow(QWidget):
     def on_press(self, key):
         try:
             if key == keyboard.Key.f9:
-                # 이건 스캔 동작 상태 조작 로직
-                self._scanning_status = not self._scanning_status
-                print("F9: timer 333 triger", self._scanning_status)
-                if self._scanning_status:
-                    QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
-                else:
-                    QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
+                self.hit_table_scanning()
             
             if key == keyboard.Key.f10:
                 # 이건 status문자 변경 조작 로직
@@ -230,7 +264,7 @@ class HUDWindow(QWidget):
             
             # hit table update
             if key == keyboard.Key.f11:
-                self.hit_table_on()
+                self.hit_table_fix()
             
             if key == keyboard.Key.f12:
                 self.hit_table_off()
