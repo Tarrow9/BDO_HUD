@@ -5,6 +5,9 @@ from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel
 
 from draw_tools import draw_neon_line
+from conf import(
+    AZIMUTH_DURATION,
+)
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
@@ -317,14 +320,16 @@ class CompassWidget(QWidget):
     def set_rotation_start_ani(self, new_rotation):
         # 회전각 재계산
         delta = new_rotation - self.rotation
+        if delta == 0:
+            return
         new_rotation = new_rotation-360 if delta > 180 else new_rotation+360 if delta < -180 else new_rotation
 
         if not hasattr(self, "compass_ani"):
             self.compass_ani = QPropertyAnimation(self, b"rotation")
         if self.compass_ani.state() == QPropertyAnimation.Running:
-            return
-        self.compass_ani.setDuration(300)
-        self.compass_ani.setEasingCurve(QEasingCurve.InOutQuad)
+            self.compass_ani.stop()
+        self.compass_ani.setDuration(AZIMUTH_DURATION)
+        self.compass_ani.setEasingCurve(QEasingCurve.InOutSine)
         self.compass_ani.setStartValue(self.rotation)
         self.compass_ani.setEndValue(new_rotation)
         self.compass_ani.start()
@@ -374,8 +379,8 @@ class AzimuthWidget(QWidget):
         if not hasattr(self, "azimuth_ani"):
             self.azimuth_ani = QPropertyAnimation(self, b"azimuth")
         if self.azimuth_ani.state() == QPropertyAnimation.Running:
-            return
-        self.azimuth_ani.setDuration(300)
+            self.azimuth_ani.stop()
+        self.azimuth_ani.setDuration(AZIMUTH_DURATION)
         self.azimuth_ani.setEasingCurve(QEasingCurve.InOutQuad)
         self.azimuth_ani.setStartValue(self.azimuth)
         self.azimuth_ani.setEndValue(new_azimuth)
@@ -547,11 +552,8 @@ class ScanAreaWidget(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 128))
 
-        left_x = INF_LEFT+130
-        right_x = INF_LEFT+350
-        top = 50
-        bottom = 500
         draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
         draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
         draw_neon_line(painter, 2, 448, 198, 448, 2, 64)

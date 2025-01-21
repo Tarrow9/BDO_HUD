@@ -1,93 +1,96 @@
-# QThread 사용
-# pyqtSignal을 이용해서 데이터 통신
-
+import math
 from PyQt5.QtCore import QThread, pyqtSignal
-from pynput import keyboard
-import sys
-import time
-from PyQt5.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+import cv2
+import numpy as np
+from PIL import ImageGrab
 
-# 작업을 처리할 QThread
-class WorkerThread(QThread):
-    update_signal = pyqtSignal(str)  # UI 업데이트용 Signal
-
-    def __init__(self):
-        super().__init__()
-        self.running = False  # 작업 실행 여부
-
+class AzimuthCaptureThread(QThread):
+    """
+    미니맵캡처, 시야각 인식 및 방위각 측정
+    """
+    angle_signal = pyqtSignal(int)
+    
+    def __init__(self, capture_rect, parent=None):
+        super().__init__(parent)
+        self.capture_rect = capture_rect
+        self.running = True
+        self.azimuth_threshold = 7
+        
     def run(self):
-        while True:
-            if self.running:
-                self.update_signal.emit("Running...")  # UI에 전달
-                time.sleep(0.1)  # 작업 반복
-            else:
-                self.update_signal.emit("")  # UI에 전달
-                time.sleep(0.1)  # 잠시 대기
+        while self.running:
+            screenshot = ImageGrab.grab(bbox=self.capture_rect)
+            image = np.array(screenshot)
+            calculated_angle = self.calculate_angle(image)
+            
+            if calculated_angle is not None:
+                self.angle_signal.emit(calculated_angle)
+            
+            self.msleep(33)
+    
+    def calculate_angle(self, image):
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        edges = cv2.Canny(gray, 490, 500)
+        lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=40, minLineLength=8, maxLineGap=10)
+        if lines is None:
+            return None
+        
+        height, width = image.shape[:2]
+        center = (width // 2, height // 2)
+        filtered_lines = self._filter_lines(lines, center, margin=90)
+        
+        if len(filtered_lines) < 2:
+            return None
+        
+        azimuths = self._calculate_azimuths(filtered_lines, center)
+        middle_angle = self._calculate_middle_azimuth(*azimuths) if len(azimuths) == 2 else None
+        
+        return middle_angle
 
-    def start_work(self):
-        self.running = True  # 작업 시작
-
-    def stop_work(self):
-        self.running = False  # 작업 중지
-
-# 메인 윈도우
-class MainWindow(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.init_ui()
-
-    def init_ui(self):
-        self.label = QLabel("Press F4 to Start/Stop the Worker Thread")
-        layout = QVBoxLayout()
-        layout.addWidget(self.label)
-        self.setLayout(layout)
-
-        # QThread 초기화
-        self.worker = WorkerThread()
-        self.worker.update_signal.connect(self.update_label)
-        self.worker.start()  # 스레드 시작
-
-    def update_label(self, text):
-        self.label.setText(text)
-
-# 키보드 입력 처리
-class KeyListener:
-    def __init__(self, worker_thread):
-        self.worker_thread = worker_thread
-        self.toggle = False  # 작업 상태
-
-    def on_press(self, key):
-        try:
-            if key == keyboard.Key.f4:  # F4 키 감지
-                self.toggle = not self.toggle
-                if self.toggle:
-                    print("Starting Worker Thread")
-                    self.worker_thread.start_work()
-                else:
-                    print("Stopping Worker Thread")
-                    self.worker_thread.stop_work()
-        except Exception as e:
-            print(f"Error: {e}")
-
-    def start_listener(self):
-        with keyboard.Listener(on_press=self.on_press) as listener:
-            listener.join()
-
-# 메인 실행
-def main():
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.show()
-
-    # QThread와 키 리스너 연결
-    key_listener = KeyListener(window.worker)
-
-    # 키 리스너를 별도의 스레드로 실행
-    from threading import Thread
-    listener_thread = Thread(target=key_listener.start_listener, daemon=True)
-    listener_thread.start()
-
-    sys.exit(app.exec_())
-
-if __name__ == "__main__":
-    main()
+    def _filter_lines(self, lines, center, margin):
+        # 중앙+margin만큼의 범위에 직선의 중심이 존재하는 직선만
+        cx, cy = center
+        filtered = []
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            line_center_x = (x1 + x2) // 2
+            line_center_y = (y1 + y2) // 2
+            
+            if (cx - margin <= line_center_x <= cx + margin and
+                cy - margin <= line_center_y <= cy + margin):
+                filtered.append(line)
+        return filtered
+    
+    def _calculate_azimuths(self, lines, center):
+        azimuths = []
+        cx, cy = center
+        
+        for line in lines:
+            x1, y1, x2, y2 = line[0]
+            
+            # 시작점을 중심점 기준으로 벡터 계산
+            dx = x1 - cx if abs(x1 - cx) > abs(x2 - cx) else x2 - cx
+            dy = y1 - cy if abs(y1 - cy) > abs(y2 - cy) else y2 - cy
+            angle = math.degrees(math.atan2(dy, dx))
+            azimuth = (angle + 360) % 360
+            
+            # 리스트의 모든 값과 비교하여 차이가 threshold 이상인 경우만 추가
+            # 중요한 건 all([])는 True 라는거!!!!!!
+            if all(abs(azimuth - a) >= self.azimuth_threshold for a in azimuths):
+                azimuths.append(azimuth)
+        
+        return azimuths
+    
+    def _calculate_middle_azimuth(self, azimuth1, azimuth2):
+        azimuth1 %= 360
+        azimuth2 %= 360
+        diff = (azimuth2 - azimuth1 + 360) % 360
+        
+        # 중간값 계산
+        middle = (azimuth1 + diff / 2) % 360 if diff <= 180 else (azimuth1 - (360 - diff) / 2 + 360) % 360
+        
+        # x축 기준 각도이므로 90도 더해서 정규화
+        return int((middle + 90) % 360)
+    
+    def stop(self):
+        self.running = False
+        self.wait()

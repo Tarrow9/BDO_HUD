@@ -16,7 +16,13 @@ from widgets import (LeftLineWidget,
     HitTableWidget,
     ScanAreaWidget,
 )
+from screen_scan import (
+    AzimuthCaptureThread,
+)
 from draw_tools import draw_neon_line
+from conf import(
+    AZIMUTH_DURATION,
+)
 from tools import Cannon
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
@@ -71,6 +77,8 @@ class HUDWindow(QWidget):
         self.create_initial_right_widgets()
 
         # CompassWidget 초기화
+        self.azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
+        self.azimuth_thread.angle_signal.connect(self.update_azimuth)
         self.new_azimuth : float = 0.0  # max: 360.0 min: 0.0
         self.compass_widget = None
         self.azimuth_widget = None
@@ -95,17 +103,18 @@ class HUDWindow(QWidget):
         self.background_value_generator_timer.start()
 
         self.lr_timer = QTimer(self) # ON / OFF
-        self.lr_timer.setInterval(333)
+        self.lr_timer.setInterval(300)
         self.lr_timer.timeout.connect(lambda: self.left_line_widget.set_shortlow_start_ani(self.new_shortlow))
         self.lr_timer.timeout.connect(lambda: self.center_shortlow_widget.set_shortlow_start_ani(self.new_shortlow))
         self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_cannon_angle))
         self.lr_timer.timeout.connect(lambda: self.center_cn_angle_widget.set_height_start_ani(self.new_cannon_angle))
 
         self.compass_timer = QTimer(self) # ALWAYS
-        self.compass_timer.setInterval(333)
+        self.compass_timer.setInterval(AZIMUTH_DURATION)
         self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
         self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
         self.compass_timer.start()
+        self.azimuth_thread.start()
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -261,6 +270,9 @@ class HUDWindow(QWidget):
         self.hit_table_widget.hide()
         self.hit_table_widget.pixmap.fill(Qt.transparent)
     
+    def update_azimuth(self, azimuth):
+        self.new_azimuth = azimuth
+    
     ## Key Actions
     def on_press(self, key):
         try:
@@ -294,7 +306,7 @@ class HUDWindow(QWidget):
         from random import randint, uniform
         self.new_shortlow = randint(-100, 600)
         self.new_cannon_angle = randint(-600, 600)
-        self.new_azimuth = round(uniform(0.0, 360.0), 1)
+        # self.new_azimuth = round(uniform(0.0, 360.0), 1)
 
     def load_hit_table(self):
         '''
