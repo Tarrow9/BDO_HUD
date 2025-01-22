@@ -42,7 +42,8 @@ class AzimuthCaptureThread(QThread):
             return None
         
         azimuths = self._calculate_azimuths(filtered_lines, center)
-        middle_angle = self._calculate_middle_azimuth(*azimuths) if len(azimuths) == 2 else None
+        filterd_azimuths = self._pick_duo_lines(azimuths, 110, 130)
+        middle_angle = self._calculate_middle_azimuth(*filterd_azimuths) if len(filterd_azimuths) == 2 else None
         
         return middle_angle
 
@@ -77,8 +78,23 @@ class AzimuthCaptureThread(QThread):
             # 중요한 건 all([])는 True 라는거!!!!!!
             if all(abs(azimuth - a) >= self.azimuth_threshold for a in azimuths):
                 azimuths.append(azimuth)
-        
+        print(azimuths)
         return azimuths
+    
+    def _pick_duo_lines(self, filterd_lines, min_diff=110, max_diff=130):
+        def angle_difference(angle1, angle2):
+            diff = abs(angle1 - angle2)
+            return min(diff, 360 - diff)  # 양방향 차이 중 최소값
+
+        filtered_azimuths = []
+        for i in range(len(filterd_lines)):
+            for j in range(i + 1, len(filterd_lines)):
+                if min_diff <= angle_difference(filterd_lines[i], filterd_lines[j]) <= max_diff:
+                    filtered_azimuths.append(filterd_lines[i])
+                    filtered_azimuths.append(filterd_lines[j])
+                    break
+        print(filtered_azimuths)
+        return filtered_azimuths
     
     def _calculate_middle_azimuth(self, azimuth1, azimuth2):
         azimuth1 %= 360
