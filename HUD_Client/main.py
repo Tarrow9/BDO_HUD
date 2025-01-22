@@ -6,7 +6,8 @@ from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase, QPixmap
 from PyQt5.QtWidgets import QApplication, QWidget
 from pynput import keyboard
 
-from widgets import (LeftLineWidget, 
+from widgets import (
+    LeftLineWidget, 
     RightLineWidget, 
     ShortLowWidget, 
     CNAngleWidget, 
