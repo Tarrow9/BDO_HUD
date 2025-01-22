@@ -242,6 +242,15 @@ class ScanAreaWindow(QWidget):
         self.setGeometry(1450, 440, 200, 450)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setWindowOpacity(0.5)  # 불투명
+
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_path = os.path.join(current_dir, "fonts/ocr-b.ttf")
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
+            self.setFont(font)
+        else:
+            self.setFont(QFont("Arial", 14))
         
         self.pixmap = QPixmap(self.size())  # QPixmap 버퍼 생성
         self.pixmap.fill(QColor(0, 0, 0))  # 초기화
@@ -254,12 +263,17 @@ class ScanAreaWindow(QWidget):
         self.is_window_visible = False
         self._angle: float = 0.0
         self._shortlow: str = ""
+
+        self.window_timer_150 = QTimer(self)
     
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
         painter.fillRect(self.rect(), QColor(0, 0, 0, 128))
         painter.drawPixmap(0, 0, self.pixmap)
+        painter.setPen(QColor('green'))
+        painter.setFont(self.font())
+        painter.drawText(10, 410, 180, 30, Qt.AlignLeft | Qt.AlignVCenter, '>> ' + str(self.shortlow))
 
         draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
         draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
@@ -330,6 +344,7 @@ class ScanAreaWindow(QWidget):
                 self.shortlow_signal.emit(int(self.shortlow))
             else:
                 self.shortlow_signal.emit(0)
+        self.update()
 
 class KeyboardActions(QObject):
     def __init__(self, hud_window: HUDWindow, scan_area_window: ScanAreaWindow):
