@@ -193,8 +193,7 @@ class HUDWindow(QWidget):
 
     # hit table handling
     def hit_table_fix(self):
-        QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
-        QMetaObject.invokeMethod(self.background_value_generator_timer, "stop", Qt.QueuedConnection)
+        # request 후  실패하면 CONNECT FAIL 출력
         shortlow_check = 0 < self.new_shortlow < 550
         height_check = -450 < self.new_cannon_angle < 450
         if not (shortlow_check and height_check):
@@ -214,22 +213,14 @@ class HUDWindow(QWidget):
         self.hit_table_widget.show()
         self.hit_table_widget.ani_count = -1
     
-    # just hide widget
-    def hit_table_off(self):
-        if True:
-            self.status_text_widget.change_color(self._base_color)
-            self.status_text_widget.new_text = "ONLINE"
-        else:
-            self.status_text_widget.change_color(self._warnining_color)
-            self.status_text_widget.new_text = "OFFLINE"
-        self.hit_table_widget.hide()
-        self.hit_table_widget.pixmap.fill(Qt.transparent)
-    
-    def update_azimuth(self, azimuth):
-        self.new_azimuth = azimuth
+    def update_azimuth(self, new_azimuth):
+        self.new_azimuth = new_azimuth
 
-    def update_angle(self, cannon_angle):\
-        self.new_cannon_angle = cannon_angle
+    def update_angle(self, new_cannon_angle):
+        self.new_cannon_angle = new_cannon_angle
+
+    def update_shortlow(self, new_shortlow):
+        self.new_shortlow = new_shortlow
 
     def load_hit_table(self):
         '''
@@ -242,6 +233,8 @@ class HUDWindow(QWidget):
 
 class ScanAreaWindow(QWidget):
     angle_signal = pyqtSignal(int)
+    shortlow_signal = pyqtSignal(int)
+    hit_calculation_signal = pyqtSignal()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -260,6 +253,7 @@ class ScanAreaWindow(QWidget):
 
         self.is_window_visible = False
         self._angle: float = 0.0
+        self._shortlow: str = ""
     
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -278,12 +272,14 @@ class ScanAreaWindow(QWidget):
     
     def mouseMoveEvent(self,event):
         self.draw_Line(event.x(),event.y())
+        event.accept()
     
-    def mouseReleaseEvent(self,event):
-        self.draw_Line(event.x(),event.y())
+    def mouseReleaseEvent(self, event):
+        self.draw_Line(event.x(), event.y())
         self.return_angle = (self.start_x, self.start_y, self.end_x, self.end_y)
         self.start_x = None
         self.start_y = None
+        event.accept()
     
     def draw_Line(self,x,y):
         if self.start_x is None:
@@ -302,6 +298,16 @@ class ScanAreaWindow(QWidget):
             painter.end()
         self.update()
     
+    def keyPressEvent(self, event):
+        """키 입력을 처리하여 self.value에 값 저장"""
+        if event.key() == Qt.Key_Plus:
+            self.shortlow = self.shortlow[:-1]
+        elif event.text().isdigit():
+            self.shortlow += event.text()
+        elif event.key() == Qt.Key_Enter:
+            self.hit_calculation_signal.emit()
+        event.accept()
+    
     @pyqtProperty(int)
     def angle(self):
         return round(self._angle*10)
@@ -311,6 +317,19 @@ class ScanAreaWindow(QWidget):
         if self._angle != new_angle:
             self._angle = new_angle
             self.angle_signal.emit(self.angle)
+    
+    @pyqtProperty(str)
+    def shortlow(self):
+        return self._shortlow
+
+    @shortlow.setter
+    def shortlow(self, new_shortlow):
+        if self._shortlow != new_shortlow:
+            self._shortlow = new_shortlow
+            if self.shortlow != '':
+                self.shortlow_signal.emit(int(self.shortlow))
+            else:
+                self.shortlow_signal.emit(0)
 
 class KeyboardActions(QObject):
     def __init__(self, hud_window: HUDWindow, scan_area_window: ScanAreaWindow):
@@ -319,39 +338,30 @@ class KeyboardActions(QObject):
         self.hud_window = hud_window
         self.scan_area_window = scan_area_window
     
-    def scanning_start(self):
-        # hud window
-        self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
-        self.hud_window.status_text_widget.new_text = "SCANNING..."
-        QMetaObject.invokeMethod(self.hud_window.lr_timer, "start", Qt.QueuedConnection)
-
-        # scan area window
+    def scanning_toggle(self):
         if self.scan_area_window.is_window_visible:
             QMetaObject.invokeMethod(self.scan_area_window, "hide", Qt.QueuedConnection)
+            QMetaObject.invokeMethod(self.hud_window.hit_table_widget, "hide", Qt.QueuedConnection)
+            QMetaObject.invokeMethod(self.hud_window.lr_timer, "stop", Qt.QueuedConnection)
+            if True: # server request 성공시
+                self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
+                self.hud_window.status_text_widget.new_text = "ONLINE"
+            else:
+                self.hud_window.status_text_widget.change_color(self.hud_window._warnining_color)
+                self.hud_window.status_text_widget.new_text = "OFFLINE"
         else:
+            self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
+            self.hud_window.status_text_widget.new_text = "SCANNING..."
+            QMetaObject.invokeMethod(self.hud_window.lr_timer, "start", Qt.QueuedConnection)
             QMetaObject.invokeMethod(self.scan_area_window, "show", Qt.QueuedConnection)
         self.scan_area_window.is_window_visible = not self.scan_area_window.is_window_visible
+
 
     ## Key Actions
     def on_press(self, key):
         try:
-            if key == keyboard.Key.left:
-                self.scanning_start()
-            
-            if key == keyboard.Key.f10:
-                # 이건 status문자 변경 조작 로직
-                from random import randint
-                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
-                self.hud_window.status_text_widget.new_text = random_list[randint(0, 4)]
-                print("F10: ", self.hud_window.status_text_widget.new_text)
-            
-            # hit table update
-            if key == keyboard.Key.f11:
-                self.hud_window.hit_table_fix()
-            
-            if key == keyboard.Key.f12:
-                self.hud_window.hit_table_off()
-            
+            if key.char == '*':
+                self.scanning_toggle()
         except AttributeError:
             pass
 
@@ -369,7 +379,9 @@ if __name__ == '__main__':
     scan_area_window = ScanAreaWindow()
     hud_window.show()
     scan_area_window.hide()
+    scan_area_window.hit_calculation_signal.connect(hud_window.hit_table_fix)
     scan_area_window.angle_signal.connect(hud_window.update_angle)
+    scan_area_window.shortlow_signal.connect(hud_window.update_shortlow)
 
     # keyboard thread
     keyboard_actions = KeyboardActions(hud_window, scan_area_window)

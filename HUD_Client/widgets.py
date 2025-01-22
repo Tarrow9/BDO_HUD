@@ -1,6 +1,6 @@
 import math
 
-from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer
+from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QEvent
 from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
 from PyQt5.QtWidgets import QWidget, QLabel
 
@@ -46,7 +46,7 @@ class LeftLineWidget(QLabel):
                 painter.drawLine(70, target_y, 90, target_y)
     
     def set_shortlow_start_ani(self, new_shortlow):
-        if not (0 < new_shortlow < 550):
+        if not (0 <= new_shortlow < 550):
             new_shortlow = self._default_shortlow
             self.change_color(QColor(255, 0, 0, 218))
         else:
@@ -149,7 +149,7 @@ class ShortLowWidget(QWidget):
             self.update()
     
     def set_shortlow_start_ani(self, new_shortlow):
-        if not (0 < new_shortlow < 550):
+        if not (0 <= new_shortlow < 550):
             new_shortlow = self._default_shortlow
             self.change_color(QColor(255, 0, 0, 218))
         else:
@@ -474,6 +474,10 @@ class HitTableWidget(QWidget):
         self.widget_timer_33_150.setInterval(150)
         self.widget_timer_33_150.timeout.connect(self.update)
         self.widget_timer_33_150.start()
+    
+    def hideEvent(self, event: QEvent):
+        self.pixmap.fill(Qt.transparent)
+        super().hideEvent(event)
         
     def paintEvent(self, event):
         painter = QPainter(self)
