@@ -544,23 +544,3 @@ class HitTableWidget(QWidget):
                         break
             self.ani_count += 1
         painter.end()
-
-class ScanAreaWidget(QWidget):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.resize(200, 450)  # 위젯 크기 설정
-        self.line_color = QColor(0, 255, 0, 218)
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
-        painter.fillRect(self.rect(), QColor(0, 0, 0, 128))
-
-        draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
-        draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
-        draw_neon_line(painter, 2, 448, 198, 448, 2, 64)
-        draw_neon_line(painter, 2, 2, 2, 448, 2, 64)
-
-    def mousePressEvent(self, event):
-        # 이 부분에서 클릭 이벤트를 처리
-        print("ScanAreaWidget 클릭됨!")
-        event.accept()  # 이벤트를 처리했다는 의미로 accept 호출

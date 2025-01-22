@@ -14,7 +14,6 @@ from widgets import (LeftLineWidget,
     AzimuthWidget,
     StatusTextWidget,
     HitTableWidget,
-    ScanAreaWidget,
 )
 from screen_scan import (
     AzimuthCaptureThread,
