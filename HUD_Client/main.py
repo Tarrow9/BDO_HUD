@@ -60,14 +60,12 @@ class HUDWindow(QWidget):
         self.move(screen_geometry.center() - self.rect().center())  # 화면 중앙에 배치
 
         # LineWidget 리스트 초기화
-        self._scanning_status = False # scan상태 비활성 상태로 윈도우 활성화
-
         self.left_line_widget = None
         self.right_line_widget = None
         self.new_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
         self.center_shortlow_widget = None
         self.center_cn_angle_widget = None
-        self.new_cannon_angle : int = 0 # max: 250 min: -250, center0 = 35*30 - 15
+        self.new_cannon_angle : int = 0 # max: 450 min: -450, center0 = 35*30 - 15
 
         self.create_initial_left_widgets()
         self.create_initial_right_widgets()
@@ -147,7 +145,7 @@ class HUDWindow(QWidget):
     ## Handling Widgets
     def create_initial_left_widgets(self):
         """초기 LeftLineWidget 생성 및 배치"""
-        center_y = self.height() // 2 # 중앙 y 좌표
+        center_y = self.height() // 2
         t = 2
         self.left_line_widget = LeftLineWidget(self)
         self.left_line_widget.move(INF_LEFT - self.left_line_widget.width() - t, center_y - 55*30 - 15)
@@ -159,7 +157,7 @@ class HUDWindow(QWidget):
 
     def create_initial_right_widgets(self):
         """초기 LeftLineWidget 17개 생성 및 배치"""
-        center_y = self.height() // 2 # 중앙 y 좌표
+        center_y = self.height() // 2
         t = 2
         self.right_line_widget = RightLineWidget(self)
         self.right_line_widget.move(INF_RIGHT + t, center_y - 60*30 - 15)
@@ -187,6 +185,7 @@ class HUDWindow(QWidget):
         self.status_text_widget.show()
 
     def create_initial_hit_table_widget(self):
+        """초기 HitTableWidget 생성 및 배치"""
         self.hit_table_widget = HitTableWidget(self)
         self.hit_table_widget.move(INF_RIGHT+180, 390)
         self.hit_table_widget.hide()
@@ -201,7 +200,7 @@ class HUDWindow(QWidget):
             self.status_text_widget.new_text = "CRITICAL ERROR"
             return
 
-        # cannon calc
+        # cannon calc, 추후 서버통신으로 수정
         new_hit_table = self.cannon.setting_hit_table(self.new_cannon_angle/10, self.new_shortlow)
         import time
         time.sleep(0.3)
@@ -222,15 +221,6 @@ class HUDWindow(QWidget):
     def update_shortlow(self, new_shortlow):
         self.new_shortlow = new_shortlow
 
-    def load_hit_table(self):
-        '''
-        fix: shortlow, height
-        request 서버
-        json 로드
-        self.hit_table 변경
-        self.hit_table_widget.ani_count = 0
-        '''
-
 class ScanAreaWindow(QWidget):
     angle_signal = pyqtSignal(int)
     shortlow_signal = pyqtSignal(int)
@@ -238,7 +228,7 @@ class ScanAreaWindow(QWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.resize(200, 450)  # 윈도우 크기 설정
+        self.resize(200, 450)
         self.setGeometry(1450, 440, 200, 450)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setWindowOpacity(0.5)  # 불투명
@@ -268,7 +258,7 @@ class ScanAreaWindow(QWidget):
     
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
+        painter.setRenderHint(QPainter.Antialiasing)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 128))
         painter.drawPixmap(0, 0, self.pixmap)
         painter.setPen(QColor('green'))
@@ -313,7 +303,6 @@ class ScanAreaWindow(QWidget):
         self.update()
     
     def keyPressEvent(self, event):
-        """키 입력을 처리하여 self.value에 값 저장"""
         if event.key() == Qt.Key_Plus:
             self.shortlow = self.shortlow[:-1]
         elif event.text().isdigit():
@@ -370,7 +359,6 @@ class KeyboardActions(QObject):
             QMetaObject.invokeMethod(self.hud_window.lr_timer, "start", Qt.QueuedConnection)
             QMetaObject.invokeMethod(self.scan_area_window, "show", Qt.QueuedConnection)
         self.scan_area_window.is_window_visible = not self.scan_area_window.is_window_visible
-
 
     ## Key Actions
     def on_press(self, key):

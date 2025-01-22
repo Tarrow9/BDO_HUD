@@ -78,7 +78,6 @@ class AzimuthCaptureThread(QThread):
             # 중요한 건 all([])는 True 라는거!!!!!!
             if all(abs(azimuth - a) >= self.azimuth_threshold for a in azimuths):
                 azimuths.append(azimuth)
-        print(azimuths)
         return azimuths
     
     def _pick_duo_lines(self, filterd_lines, min_diff=110, max_diff=130):
@@ -93,7 +92,6 @@ class AzimuthCaptureThread(QThread):
                     filtered_azimuths.append(filterd_lines[i])
                     filtered_azimuths.append(filterd_lines[j])
                     break
-        print(filtered_azimuths)
         return filtered_azimuths
     
     def _calculate_middle_azimuth(self, azimuth1, azimuth2):
