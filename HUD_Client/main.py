@@ -1,8 +1,8 @@
 import sys, os
-import ctypes
 import threading
-from PyQt5.QtCore import QMetaObject, Qt, QTimer
-from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase
+import math
+from PyQt5.QtCore import QMetaObject, Qt, QTimer, QObject, pyqtSignal, QEvent, pyqtProperty
+from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase, QPixmap
 from PyQt5.QtWidgets import QApplication, QWidget
 from pynput import keyboard
 
@@ -36,9 +36,9 @@ class HUDWindow(QWidget):
         super().__init__()
         self.cannon = Cannon()
 
-        # 윈도우 설정
+        # 윈도우 설정, click-through 설정 (WindowTransparentForInput)
         self.setWindowFlags(
-            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowTransparentForInput
         )
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowOpacity(0.75)
@@ -59,9 +59,6 @@ class HUDWindow(QWidget):
         self.setGeometry(0, 0, 2800, 630)  # 크기 설정
         screen_geometry = QApplication.desktop().availableGeometry()
         self.move(screen_geometry.center() - self.rect().center())  # 화면 중앙에 배치
-
-        # click-through 설정
-        self.setClickThrough()
 
         # LineWidget 리스트 초기화
         self._scanning_status = False # scan상태 비활성 상태로 윈도우 활성화
@@ -92,16 +89,7 @@ class HUDWindow(QWidget):
         self.hit_table_widget = None
         self.create_initial_hit_table_widget()
 
-        # Scan Widgets 초기화
-        self.scan_area_widget = None
-        self.create_initial_scan_area_widget()
-
         # 타이머 설정
-        self.background_value_generator_timer = QTimer(self) # ALWAYS
-        self.background_value_generator_timer.setInterval(500)
-        self.background_value_generator_timer.timeout.connect(self.random_generator)
-        self.background_value_generator_timer.start()
-
         self.lr_timer = QTimer(self) # ON / OFF
         self.lr_timer.setInterval(300)
         self.lr_timer.timeout.connect(lambda: self.left_line_widget.set_shortlow_start_ani(self.new_shortlow))
@@ -157,17 +145,6 @@ class HUDWindow(QWidget):
         draw_neon_line(painter, center_x - 15, 0, center_x, 15, 2, 192)
         draw_neon_line(painter, center_x + 15, 0, center_x, 15, 2, 192)
 
-    def setClickThrough(self):
-        hwnd = int(self.winId())  # PyQt 창의 핸들 ID 가져오기
-        # Windows API 호출을 위한 설정
-        GWL_EXSTYLE = -20  # Extended window style
-        WS_EX_LAYERED = 0x00080000
-        WS_EX_TRANSPARENT = 0x00000020
-
-        # 기존 창 스타일에 투명 및 클릭 무시 옵션 추가
-        style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
-        ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_LAYERED | WS_EX_TRANSPARENT)
-
     ## Handling Widgets
     def create_initial_left_widgets(self):
         """초기 LeftLineWidget 생성 및 배치"""
@@ -215,17 +192,9 @@ class HUDWindow(QWidget):
         self.hit_table_widget.move(INF_RIGHT+180, 390)
         self.hit_table_widget.hide()
 
-    def create_initial_scan_area_widget(self):
-        self.scan_area_widget = ScanAreaWidget(self)
-        self.scan_area_widget.move(INF_LEFT+130, 50)
-        self.scan_area_widget.hide()
-
     # hit table handling
     def hit_table_fix(self):
-        # lr_line stop
-        self.scan_area_widget.hide()
         QMetaObject.invokeMethod(self.lr_timer, "stop", Qt.QueuedConnection)
-        # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
         QMetaObject.invokeMethod(self.background_value_generator_timer, "stop", Qt.QueuedConnection)
         shortlow_check = 0 < self.new_shortlow < 550
         height_check = -450 < self.new_cannon_angle < 450
@@ -236,7 +205,6 @@ class HUDWindow(QWidget):
 
         # cannon calc
         new_hit_table = self.cannon.setting_hit_table(self.new_cannon_angle/10, self.new_shortlow)
-        print(self.new_cannon_angle/10, self.new_shortlow)
         import time
         time.sleep(0.3)
 
@@ -246,19 +214,7 @@ class HUDWindow(QWidget):
         self.hit_table_widget.hit_table = new_hit_table
         self.hit_table_widget.show()
         self.hit_table_widget.ani_count = -1
-        print("F11")
-    # scan shortlow, height
-    def hit_table_scanning(self):
-        # start scanning
-        self.status_text_widget.change_color(self._base_color)
-        self.status_text_widget.new_text = "SCANNING..."
-        self.scan_area_widget.show()
-        QMetaObject.invokeMethod(self.lr_timer, "start", Qt.QueuedConnection)
-        # QMetaObject.invokeMethod(self.scanner_timer, "stop", Qt.QueuedConnection)
-        QMetaObject.invokeMethod(self.background_value_generator_timer, "start", Qt.QueuedConnection)
-
-        # self.new_shortlow = randint(-100, 600)
-        # self.new_cannon_angle = randint(-350, 350) # *10한 int로 주기
+    
     # just hide widget
     def hit_table_off(self):
         if True:
@@ -272,41 +228,9 @@ class HUDWindow(QWidget):
     
     def update_azimuth(self, azimuth):
         self.new_azimuth = azimuth
-    
-    ## Key Actions
-    def on_press(self, key):
-        try:
-            if key == keyboard.Key.f9:
-                self.hit_table_scanning()
-            
-            if key == keyboard.Key.f10:
-                # 이건 status문자 변경 조작 로직
-                from random import randint
-                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
-                self.status_text_widget.new_text = random_list[randint(0, 4)]
-                print("F10: ", self.status_text_widget.new_text)
-            
-            # hit table update
-            if key == keyboard.Key.f11:
-                self.hit_table_fix()
-            
-            if key == keyboard.Key.f12:
-                self.hit_table_off()
-            
-        except AttributeError:
-            pass
 
-    def start_listener(self):
-        # 키보드 리스너 시작
-        with keyboard.Listener(on_press=self.on_press) as listener:
-            listener.join()
-    
-    ## For Test
-    def random_generator(self):
-        from random import randint, uniform
-        self.new_shortlow = randint(-100, 600)
-        self.new_cannon_angle = randint(-600, 600)
-        # self.new_azimuth = round(uniform(0.0, 360.0), 1)
+    def update_angle(self, cannon_angle):\
+        self.new_cannon_angle = cannon_angle
 
     def load_hit_table(self):
         '''
@@ -317,12 +241,140 @@ class HUDWindow(QWidget):
         self.hit_table_widget.ani_count = 0
         '''
 
-if __name__ == '__main__':
-    app = QApplication([])
-    window = HUDWindow()
-    window.show()
+class ScanAreaWindow(QWidget):
+    angle_signal = pyqtSignal(int)
 
-    listener_thread = threading.Thread(target=window.start_listener)
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.resize(200, 450)  # 윈도우 크기 설정
+        self.setGeometry(1450, 440, 200, 450)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
+        self.setWindowOpacity(0.5)  # 불투명
+        
+        self.pixmap = QPixmap(self.size())  # QPixmap 버퍼 생성
+        self.pixmap.fill(QColor(0, 0, 0))  # 초기화
+        
+        self.start_x = None
+        self.start_y = None
+        self.end_x = None
+        self.end_y = None
+
+        self.is_window_visible = False
+        self._angle: float = 0.0
+    
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)  # 안티앨리어싱 활성화
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 128))
+        painter.drawPixmap(0, 0, self.pixmap)
+
+        draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
+        draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
+        draw_neon_line(painter, 2, 448, 198, 448, 2, 64)
+        draw_neon_line(painter, 2, 2, 2, 448, 2, 64)
+    
+    def hideEvent(self, event: QEvent):
+        self.pixmap.fill(QColor(0, 0, 0))
+        super().hideEvent(event)
+    
+    def mouseMoveEvent(self,event):
+        self.draw_Line(event.x(),event.y())
+    
+    def mouseReleaseEvent(self,event):
+        self.draw_Line(event.x(),event.y())
+        self.return_angle = (self.start_x, self.start_y, self.end_x, self.end_y)
+        self.start_x = None
+        self.start_y = None
+    
+    def draw_Line(self,x,y):
+        if self.start_x is None:
+            self.start_x = x
+            self.start_y = y
+        else:
+            self.end_x = x
+            self.end_y = y
+            self.pixmap.fill(QColor(0, 0, 0))
+            painter = QPainter(self.pixmap)
+            painter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
+            painter.drawLine(self.start_x, self.start_y, self.end_x, self.end_y)
+            dx = abs(self.end_x - self.start_x)
+            dy = self.end_y - self.start_y
+            self.angle = round(math.degrees(math.atan2(dy, dx)), 3)
+            painter.end()
+        self.update()
+    
+    @pyqtProperty(int)
+    def angle(self):
+        return round(self._angle*10)
+
+    @angle.setter
+    def angle(self, new_angle):
+        if self._angle != new_angle:
+            self._angle = new_angle
+            self.angle_signal.emit(self.angle)
+
+class KeyboardActions(QObject):
+    def __init__(self, hud_window: HUDWindow, scan_area_window: ScanAreaWindow):
+        super().__init__()
+        self.listener = None
+        self.hud_window = hud_window
+        self.scan_area_window = scan_area_window
+    
+    def scanning_start(self):
+        # hud window
+        self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
+        self.hud_window.status_text_widget.new_text = "SCANNING..."
+        QMetaObject.invokeMethod(self.hud_window.lr_timer, "start", Qt.QueuedConnection)
+
+        # scan area window
+        if self.scan_area_window.is_window_visible:
+            QMetaObject.invokeMethod(self.scan_area_window, "hide", Qt.QueuedConnection)
+        else:
+            QMetaObject.invokeMethod(self.scan_area_window, "show", Qt.QueuedConnection)
+        self.scan_area_window.is_window_visible = not self.scan_area_window.is_window_visible
+
+    ## Key Actions
+    def on_press(self, key):
+        try:
+            if key == keyboard.Key.left:
+                self.scanning_start()
+            
+            if key == keyboard.Key.f10:
+                # 이건 status문자 변경 조작 로직
+                from random import randint
+                random_list = ["CONNECTING..", "CONNECTED", "SCANNING...", "FIXED", "CRITICAL ERROR"]
+                self.hud_window.status_text_widget.new_text = random_list[randint(0, 4)]
+                print("F10: ", self.hud_window.status_text_widget.new_text)
+            
+            # hit table update
+            if key == keyboard.Key.f11:
+                self.hud_window.hit_table_fix()
+            
+            if key == keyboard.Key.f12:
+                self.hud_window.hit_table_off()
+            
+        except AttributeError:
+            pass
+
+    def start_listener(self):
+        # 키보드 리스너 시작
+        with keyboard.Listener(on_press=self.on_press) as listener:
+            listener.join()
+
+if __name__ == '__main__':
+    # init
+    app = QApplication([])
+
+    # windows
+    hud_window = HUDWindow()
+    scan_area_window = ScanAreaWindow()
+    hud_window.show()
+    scan_area_window.hide()
+    scan_area_window.angle_signal.connect(hud_window.update_angle)
+
+    # keyboard thread
+    keyboard_actions = KeyboardActions(hud_window, scan_area_window)
+    listener_thread = threading.Thread(target=keyboard_actions.start_listener)
     listener_thread.daemon = True  # 프로그램 종료 시 스레드 종료
     listener_thread.start()
 

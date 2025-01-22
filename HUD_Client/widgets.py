@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QWidget, QLabel
 from draw_tools import draw_neon_line
 from conf import(
     AZIMUTH_DURATION,
+    LR_DURATION,
 )
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
@@ -55,7 +56,7 @@ class LeftLineWidget(QLabel):
             self.l_line_ani = QPropertyAnimation(self, b"pos")
         if self.l_line_ani.state() == QPropertyAnimation.Running:
             return
-        self.l_line_ani.setDuration(300)
+        self.l_line_ani.setDuration(LR_DURATION)
         self.l_line_ani.setStartValue(self.pos())
         self.l_line_ani.setEndValue(self.pos() + QPoint(0, (new_shortlow - self.shortlow)*3))
         self.l_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
@@ -110,7 +111,7 @@ class RightLineWidget(QLabel):
             self.r_line_ani = QPropertyAnimation(self, b"pos")
         if self.r_line_ani.state() == QPropertyAnimation.Running:
             return
-        self.r_line_ani.setDuration(300)
+        self.r_line_ani.setDuration(LR_DURATION)
         self.r_line_ani.setStartValue(self.pos())
         self.r_line_ani.setEndValue(self.pos() + QPoint(0, (new_cn_angle - self.cn_angle)*3))
         self.r_line_ani.setEasingCurve(QEasingCurve.InOutQuad)
@@ -158,7 +159,7 @@ class ShortLowWidget(QWidget):
             self.short_low_ani = QPropertyAnimation(self, b"shortlow")
         if self.short_low_ani.state() == QPropertyAnimation.Running:
             return
-        self.short_low_ani.setDuration(300)
+        self.short_low_ani.setDuration(LR_DURATION)
         self.short_low_ani.setStartValue(self._shortlow)
         self.short_low_ani.setEndValue(new_shortlow)
         self.short_low_ani.setEasingCurve(QEasingCurve.InOutQuad)
@@ -208,7 +209,7 @@ class CNAngleWidget(QWidget):
             self.cn_angle_ani = QPropertyAnimation(self, b"cn_angle")
         if self.cn_angle_ani.state() == QPropertyAnimation.Running:
             return
-        self.cn_angle_ani.setDuration(300)
+        self.cn_angle_ani.setDuration(LR_DURATION)
         self.cn_angle_ani.setStartValue(self._cn_angle)
         self.cn_angle_ani.setEndValue(new_cn_angle)
         self.cn_angle_ani.setEasingCurve(QEasingCurve.InOutQuad)
@@ -558,3 +559,8 @@ class ScanAreaWidget(QWidget):
         draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
         draw_neon_line(painter, 2, 448, 198, 448, 2, 64)
         draw_neon_line(painter, 2, 2, 2, 448, 2, 64)
+
+    def mousePressEvent(self, event):
+        # 이 부분에서 클릭 이벤트를 처리
+        print("ScanAreaWidget 클릭됨!")
+        event.accept()  # 이벤트를 처리했다는 의미로 accept 호출
