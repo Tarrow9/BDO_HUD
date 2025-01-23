@@ -229,8 +229,8 @@ class ScanAreaWindow(QWidget):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.resize(200, 450)
-        self.setGeometry(1450, 440, 200, 450)
+        self.resize(250, 550)
+        self.setGeometry(1330, 440, 250, 550)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setWindowOpacity(0.5)  # 불투명
 
@@ -266,10 +266,10 @@ class ScanAreaWindow(QWidget):
         painter.setFont(self.font())
         painter.drawText(10, 410, 180, 30, Qt.AlignLeft | Qt.AlignVCenter, '>> ' + str(self.shortlow))
 
-        draw_neon_line(painter, 2, 2, 198, 2, 2, 64)
-        draw_neon_line(painter, 198, 2, 198, 448, 2, 64)
-        draw_neon_line(painter, 2, 448, 198, 448, 2, 64)
-        draw_neon_line(painter, 2, 2, 2, 448, 2, 64)
+        draw_neon_line(painter, 2, 2, 248, 2, 2, 64)
+        draw_neon_line(painter, 248, 2, 248, 548, 2, 64)
+        draw_neon_line(painter, 2, 548, 248, 548, 2, 64)
+        draw_neon_line(painter, 2, 2, 2, 548, 2, 64)
     
     def hideEvent(self, event: QEvent):
         self.pixmap.fill(QColor(0, 0, 0))
