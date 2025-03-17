@@ -2,11 +2,12 @@ import math
 from PyQt5.QtCore import QThread, pyqtSignal
 import cv2
 import numpy as np
-from PIL import ImageGrab
+from mss.windows import MSS as mss
 
 class AzimuthCaptureThread(QThread):
     """
     미니맵캡처, 시야각 인식 및 방위각 측정
+    (x1, y1, x2, y2)
     """
     angle_signal = pyqtSignal(int)
     
@@ -17,15 +18,23 @@ class AzimuthCaptureThread(QThread):
         self.azimuth_threshold = 7
         
     def run(self):
-        while self.running:
-            screenshot = ImageGrab.grab(bbox=self.capture_rect)
-            image = np.array(screenshot)
-            calculated_angle = self.calculate_angle(image)
-            
-            if calculated_angle is not None:
-                self.angle_signal.emit(calculated_angle)
-            
-            self.msleep(33)
+        #(3122, 30, 3420, 290)
+        moniter = {
+            'top': self.capture_rect[1],
+            'left': self.capture_rect[0],
+            'width': self.capture_rect[2]-self.capture_rect[0],
+            'height': self.capture_rect[3]-self.capture_rect[1],
+        }
+        with mss() as sct:
+            while self.running:
+                screenshot = sct.grab(moniter)
+                image = np.array(screenshot)
+                calculated_angle = self.calculate_angle(image)
+
+                if calculated_angle is not None:
+                    self.angle_signal.emit(calculated_angle)
+
+                self.msleep(16)
     
     def calculate_angle(self, image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

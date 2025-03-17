@@ -30,6 +30,12 @@ INF_RIGHT = 1800  # 우측 세로선 상단 x
 INF_HIGH = 60  # 좌측 세로선 상단 y
 LINE_LEN = 30  # 가로선 길이
 
+## venv init
+import PyQt5
+dirname = os.path.dirname(PyQt5.__file__)
+plugin_path = os.path.join(dirname, 'Qt5', 'plugins', 'platforms')
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = plugin_path
+
 class HUDWindow(QWidget):
     ## Initializings
     def __init__(self):
