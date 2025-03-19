@@ -1,8 +1,10 @@
 import math
-from PyQt5.QtCore import QThread, pyqtSignal
 import cv2
 import numpy as np
+import pyopencl as cl
+from PyQt5.QtCore import QThread, pyqtSignal
 from mss.windows import MSS as mss
+from gpu_util import GPUUtils
 
 class AzimuthCaptureThread(QThread):
     """
@@ -16,6 +18,7 @@ class AzimuthCaptureThread(QThread):
         self.capture_rect = capture_rect
         self.running = True
         self.azimuth_threshold = 7
+        self.gpu_utils = GPUUtils()
         
     def run(self):
         #(3122, 30, 3420, 290)
@@ -34,11 +37,10 @@ class AzimuthCaptureThread(QThread):
                 if calculated_angle is not None:
                     self.angle_signal.emit(calculated_angle)
 
-                self.msleep(16)
+                self.msleep(33)
     
     def calculate_angle(self, image):
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        edges = cv2.Canny(gray, 490, 500)
+        edges = self.gpu_utils.gpu_canny(image)
         lines = cv2.HoughLinesP(edges, 1, np.pi / 180, threshold=40, minLineLength=8, maxLineGap=10)
         if lines is None:
             return None

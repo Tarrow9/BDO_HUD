@@ -4,3 +4,5 @@ pynput==1.8.0
 opencv-python==4.11.0.86
 pillow==11.1.0
 mss==10.0.0
+pyopencl==2025.1
+siphash24==1.7
