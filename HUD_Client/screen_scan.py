@@ -30,8 +30,8 @@ class AzimuthCaptureThread(QThread):
         }
         with mss() as sct:
             while self.running:
-                screenshot = sct.grab(moniter)
-                image = np.array(screenshot)
+                shot = sct.grab(moniter)
+                image = np.frombuffer(shot.raw, dtype=np.uint8).reshape(shot.height, shot.width, 4)
                 calculated_angle = self.calculate_angle(image)
 
                 if calculated_angle is not None:
