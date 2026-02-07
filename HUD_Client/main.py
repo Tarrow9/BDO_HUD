@@ -175,12 +175,12 @@ class HUDWindow(QWidget):
         self.create_initial_right_widgets()
 
         # CompassWidget 초기화
-        self.azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
-        self.azimuth_thread.angle_signal.connect(self.update_azimuth)
-        self.new_azimuth : float = 0.0  # max: 360.0 min: 0.0
-        self.compass_widget = None
-        self.azimuth_widget = None
-        self.create_initial_compass_widgets()
+        # self.azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
+        # self.azimuth_thread.angle_signal.connect(self.update_azimuth)
+        # self.new_azimuth : float = 0.0  # max: 360.0 min: 0.0
+        # self.compass_widget = None
+        # self.azimuth_widget = None
+        # self.create_initial_compass_widgets()
 
         # StatusWidget 초기화
         self.status_text_widget = None
@@ -198,12 +198,12 @@ class HUDWindow(QWidget):
         self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_cannon_angle))
         self.lr_timer.timeout.connect(lambda: self.center_cn_angle_widget.set_height_start_ani(self.new_cannon_angle))
 
-        self.compass_timer = QTimer(self) # ALWAYS
-        self.compass_timer.setInterval(AZIMUTH_DURATION)
-        self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
-        self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
-        self.compass_timer.start()
-        self.azimuth_thread.start()
+        # self.compass_timer = QTimer(self) # ALWAYS
+        # self.compass_timer.setInterval(AZIMUTH_DURATION)
+        # self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
+        # self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
+        # self.compass_timer.start()
+        # self.azimuth_thread.start()
 
         # inertia for HUDWindow
         self._inertia_state = inertia_init(
@@ -542,23 +542,92 @@ class KeyboardActions(QObject):
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
 
+class CompassWindow(QWidget):
+    def __init__(self):
+        super().__init__()
+
+        # HUDWindow와 같은 성격(투명/클릭스루/항상 위)
+        self.setWindowFlags(
+            Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool | Qt.WindowTransparentForInput
+        )
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowOpacity(0.75)
+
+        # HUDWindow랑 비슷하게 폰트 적용(원하면 제거 가능)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        font_path = os.path.join(current_dir, "fonts/ocr-b.ttf")
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
+            self.setFont(font)
+        else:
+            self.setFont(QFont("Arial", 14))
+
+        # 창 크기: 나침반+방위각 텍스트 정도만
+        # (CompassWidget 250x250, AzimuthWidget 100x100)*
+        self.resize(260, 115)
+
+        self.new_azimuth: float = 0.0
+        self.compass_widget = CompassWidget(self)
+        self.azimuth_widget = AzimuthWidget(self)
+
+        # 배치
+        self.compass_widget.move(5, 0)
+        self.azimuth_widget.move(80, 55) # 방향값 텍스트 위치 조정
+
+        self.compass_widget.show()
+        self.azimuth_widget.show()
+
+        # 업데이트 타이머(기존 compass_timer 역할)
+        self.compass_timer = QTimer(self)
+        self.compass_timer.setInterval(AZIMUTH_DURATION)
+        self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
+        self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
+        self.compass_timer.start()
+
+        # 화면 중앙 하단에 고정 배치(원하면 좌표 조절)
+        screen_geo = QApplication.desktop().availableGeometry()
+        x = screen_geo.center().x() - self.width() // 2
+        y = screen_geo.top() + 885   # 나침반 창 위치 조절
+        self.move(x, y)
+
+    def update_azimuth(self, new_azimuth):
+        self.new_azimuth = new_azimuth
+
+
 if __name__ == '__main__':
-    # init
     app = QApplication([])
 
-    # windows
     hud_window = HUDWindow()
     scan_area_window = ScanAreaWindow()
+
+    # ✅ 나침반 전용 창
+    compass_window = CompassWindow()
+    compass_window.show()
+
     hud_window.show()
     scan_area_window.hide()
+
+    # 기존 시그널 연결
     scan_area_window.hit_calculation_signal.connect(hud_window.hit_table_fix)
     scan_area_window.angle_signal.connect(hud_window.update_angle)
     scan_area_window.shortlow_signal.connect(hud_window.update_shortlow)
+
+    # ✅ 방위각 캡처 스레드 시작 + compass_window로 연결
+    azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
+    azimuth_thread.angle_signal.connect(compass_window.update_azimuth)
+    azimuth_thread.start()
 
     # keyboard thread
     keyboard_actions = KeyboardActions(hud_window, scan_area_window)
     listener_thread = threading.Thread(target=keyboard_actions.start_listener)
     listener_thread.daemon = True  # 프로그램 종료 시 스레드 종료
     listener_thread.start()
+
+    # 종료 시 스레드 정리(권장)
+    def _cleanup():
+        azimuth_thread.stop()
+
+    app.aboutToQuit.connect(_cleanup)
 
     sys.exit(app.exec_())
