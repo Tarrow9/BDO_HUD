@@ -612,7 +612,7 @@ if __name__ == '__main__':
     hud_window = HUDWindow()
     scan_area_window = ScanAreaWindow()
 
-    tray_icon = QIcon("HUD_Client/main.ico")
+    tray_icon = QIcon(resource_path("main.ico"))
     tray = QSystemTrayIcon(tray_icon, app)
     tray.setToolTip("BDO_HUD")
 
