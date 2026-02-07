@@ -1,8 +1,24 @@
 import sys, os
 import threading
 import math
-from PyQt5.QtCore import QMetaObject, Qt, QTimer, QObject, pyqtSignal, QEvent, pyqtProperty
-from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QFontDatabase, QPixmap
+from PyQt5.QtCore import (
+    QMetaObject,
+    Qt,
+    QTimer,
+    QObject,
+    pyqtSignal,
+    QEvent,
+    pyqtProperty,
+    QPointF,
+)
+from PyQt5.QtGui import (
+    QColor,
+    QPainter,
+    QPen, QFont,
+    QFontDatabase,
+    QPixmap,
+    QCursor,
+)
 from PyQt5.QtWidgets import QApplication, QWidget
 from pynput import keyboard
 
@@ -35,6 +51,87 @@ import PyQt5
 dirname = os.path.dirname(PyQt5.__file__)
 plugin_path = os.path.join(dirname, 'Qt5', 'plugins', 'platforms')
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = plugin_path
+
+def inertia_init(widget, *, gain_x=0.25, gain_y=0.20, damping=0.82, follow=0.18,
+                 max_x=70, max_y=50, teleport_ratio=0.45):
+    """widget: 움직일 창(QWIdget). widget.move()로 이동."""
+    state = {}
+    state["base_pos"] = widget.pos()
+    state["prev_cursor"] = QCursor.pos()
+    state["offset"] = QPointF(0.0, 0.0)
+    state["vel"] = QPointF(0.0, 0.0)
+
+    state["gain_x"] = gain_x
+    state["gain_y"] = gain_y
+    state["damping"] = damping
+    state["follow"] = follow
+    state["max_x"] = max_x
+    state["max_y"] = max_y
+
+    # wrap/teleport 감지 임계값(해상도 기반)
+    screen_geo = QApplication.primaryScreen().geometry()
+    state["teleport_x"] = int(screen_geo.width() * teleport_ratio)
+    state["teleport_y"] = int(screen_geo.height() * teleport_ratio)
+
+    # 선택: dx/dy 클램프(폭주 방지)
+    # state["max_d_per_tick"] = 80  # 16ms 기준, 필요시 조절
+
+    return state
+
+
+def inertia_tick(widget, state):
+    """한 틱 업데이트: 마우스 이동에 따른 잔상 관성 적용 + wrap 방지."""
+    cur = QCursor.pos()
+    prev = state["prev_cursor"]
+    dx = cur.x() - prev.x()
+    dy = cur.y() - prev.y()
+    state["prev_cursor"] = cur
+
+    # ✅ wrap/teleport 감지: 그 프레임 입력 무시
+    if abs(dx) > state["teleport_x"] or abs(dy) > state["teleport_y"]:
+        # 튐 방지: velocity 죽이기
+        v = state["vel"]
+        state["vel"] = QPointF(v.x() * 0.2, v.y() * 0.2)
+        return
+
+    # # 선택: per-tick 클램프
+    # md = state["max_d_per_tick"]
+    # dx = max(-md, min(md, dx))
+    # dy = max(-md, min(md, dy))
+
+    # 마우스 속도 크기 → 큰 이동일수록 더 크게 반응(선택)
+    speed = math.hypot(dx, dy)
+    mult = 1.0 + min(1.5, speed / 25.0)
+
+    # vel 업데이트(반대방향)
+    v = state["vel"]
+    v = QPointF(
+        v.x() + (-dx * state["gain_x"] * mult),
+        v.y() + (-dy * state["gain_y"] * mult),
+    )
+
+    # vel 감쇠
+    v = QPointF(v.x() * 0.75, v.y() * 0.75)
+    state["vel"] = v
+
+    # offset 업데이트 + 감쇠
+    o = state["offset"]
+    o = QPointF((o.x() + v.x()) * state["damping"], (o.y() + v.y()) * state["damping"])
+
+    # clamp offset
+    ox = max(-state["max_x"], min(state["max_x"], o.x()))
+    oy = max(-state["max_y"], min(state["max_y"], o.y()))
+    o = QPointF(ox, oy)
+    state["offset"] = o
+
+    base = state["base_pos"]
+    target_x = base.x() + ox
+    target_y = base.y() + oy
+
+    now = widget.pos()
+    new_x = now.x() + (target_x - now.x()) * state["follow"]
+    new_y = now.y() + (target_y - now.y()) * state["follow"]
+    widget.move(int(new_x), int(new_y))
 
 class HUDWindow(QWidget):
     ## Initializings
@@ -107,6 +204,71 @@ class HUDWindow(QWidget):
         self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
         self.compass_timer.start()
         self.azimuth_thread.start()
+
+        # inertia for HUDWindow
+        self._inertia_state = inertia_init(
+            self,
+            gain_x=0.25, gain_y=0.20,
+            damping=0.45, follow=0.55,
+            max_x=70, max_y=50,
+        )
+        self._inertia_timer = QTimer(self)
+        self._inertia_timer.setInterval(16)
+        self._inertia_timer.timeout.connect(lambda: inertia_tick(self, self._inertia_state))
+        self._inertia_timer.start()
+
+    def _update_trail_motion(self):
+        cur = QCursor.pos()
+        dx = cur.x() - self._prev_cursor.x()
+        dy = cur.y() - self._prev_cursor.y()
+
+        # ✅ 랩/텔레포트 감지: 이 프레임 입력 무시
+        if abs(dx) > self._teleport_x or abs(dy) > self._teleport_y:
+            self._prev_cursor = cur
+            # 튐 방지: velocity도 살짝 죽여주면 더 안정적
+            self._vel.setX(self._vel.x() * 0.2)
+            self._vel.setY(self._vel.y() * 0.2)
+            return
+
+        self._prev_cursor = cur
+
+        # 마우스 이동을 "반대 방향 offset"에 누적
+        speed = math.hypot(dx, dy)  # 마우스 이동 "크기"
+        
+        # speed가 커질수록 multiplier가 커짐 (1.0 ~ 2.5 정도)
+        mult = 1.0 + min(1.5, speed / 25.0)
+        # mult = 1.0 + min(2.0, (speed / 20.0) ** 1.4)  # 1.2~1.8 사이 추천
+        
+        self._vel.setX(self._vel.x() + (-dx * self._gain_x * mult))
+        self._vel.setY(self._vel.y() + (-dy * self._gain_y * mult))
+
+        # velocity도 감쇠시키기 (너무 폭주 방지)
+        self._vel.setX(self._vel.x() * 0.75)
+        self._vel.setY(self._vel.y() * 0.75)
+
+        # offset에 velocity를 반영
+        self._offset.setX(self._offset.x() + self._vel.x())
+        self._offset.setY(self._offset.y() + self._vel.y())
+
+        # offset 감쇠 (마우스 멈추면 자연스럽게 0으로 복귀)
+        self._offset.setX(self._offset.x() * self._damping)
+        self._offset.setY(self._offset.y() * self._damping)
+
+        # 최대 범위 제한
+        ox = max(-self._max_x, min(self._max_x, self._offset.x()))
+        oy = max(-self._max_y, min(self._max_y, self._offset.y()))
+        self._offset = QPointF(ox, oy)
+
+        # 목표 위치
+        target_x = self._hud_base_pos.x() + ox
+        target_y = self._hud_base_pos.y() + oy
+
+        # 현재 위치에서 목표로 "조금씩" 이동 (잔상 느낌 핵심)
+        now = self.pos()
+        new_x = now.x() + (target_x - now.x()) * self._follow
+        new_y = now.y() + (target_y - now.y()) * self._follow
+
+        self.move(int(new_x), int(new_y))
 
     def paintEvent(self, event):
         painter = QPainter(self)
