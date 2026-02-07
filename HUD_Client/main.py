@@ -18,8 +18,9 @@ from PyQt5.QtGui import (
     QFontDatabase,
     QPixmap,
     QCursor,
+    QIcon,
 )
-from PyQt5.QtWidgets import QApplication, QWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QSystemTrayIcon, QMenu, QAction
 from pynput import keyboard
 
 from widgets import (
@@ -51,6 +52,12 @@ import PyQt5
 dirname = os.path.dirname(PyQt5.__file__)
 plugin_path = os.path.join(dirname, 'Qt5', 'plugins', 'platforms')
 os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = plugin_path
+
+def resource_path(relative_path: str):
+    """PyInstaller onefile 대응 경로 헬퍼"""
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 def inertia_init(widget, *, gain_x=0.25, gain_y=0.20, damping=0.82, follow=0.18,
                  max_x=70, max_y=50, teleport_ratio=0.45):
@@ -133,6 +140,7 @@ def inertia_tick(widget, state):
     new_y = now.y() + (target_y - now.y()) * state["follow"]
     widget.move(int(new_x), int(new_y))
 
+
 class HUDWindow(QWidget):
     ## Initializings
     def __init__(self):
@@ -148,7 +156,7 @@ class HUDWindow(QWidget):
 
         # 폰트, 색 설정
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        font_path = os.path.join(current_dir, "fonts/ocr-b.ttf")
+        font_path = resource_path("fonts/ocr-b.ttf")
         font_id = QFontDatabase.addApplicationFont(font_path)
         if font_id != -1:
             font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
@@ -390,6 +398,7 @@ class HUDWindow(QWidget):
     def update_shortlow(self, new_shortlow):
         self.new_shortlow = new_shortlow
 
+
 class ScanAreaWindow(QWidget):
     angle_signal = pyqtSignal(int)
     shortlow_signal = pyqtSignal(int)
@@ -504,6 +513,7 @@ class ScanAreaWindow(QWidget):
                 self.shortlow_signal.emit(0)
         self.update()
 
+
 class KeyboardActions(QObject):
     def __init__(self, hud_window: HUDWindow, scan_area_window: ScanAreaWindow):
         super().__init__()
@@ -541,6 +551,7 @@ class KeyboardActions(QObject):
         # 키보드 리스너 시작
         with keyboard.Listener(on_press=self.on_press) as listener:
             listener.join()
+
 
 class CompassWindow(QWidget):
     def __init__(self):
@@ -600,6 +611,18 @@ if __name__ == '__main__':
 
     hud_window = HUDWindow()
     scan_area_window = ScanAreaWindow()
+
+    tray_icon = QIcon("HUD_Client/main.ico")
+    tray = QSystemTrayIcon(tray_icon, app)
+    tray.setToolTip("BDO_HUD")
+
+    menu = QMenu()
+    quit_action = QAction("Quit")
+    quit_action.triggered.connect(app.quit)
+    menu.addAction(quit_action)
+
+    tray.setContextMenu(menu)
+    tray.show()
 
     # ✅ 나침반 전용 창
     compass_window = CompassWindow()
