@@ -3,6 +3,7 @@
 .vscode
 Calc_Server
 data/
+output/
 
 HUD_Client/tools.py
 HUD_Client/flow.py
