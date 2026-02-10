@@ -103,6 +103,8 @@ class Cannon:
             data = json.loads(message)
         except Exception:
             data = {"type": "raw", "msg": message}
+        
+        print("WS message:", data)  # 디버그용 출력
 
         # hello 메시지에서 session_key 받기
         # 예: {"code":1,"msg":"connected","nick":"...","session_key":"..."}

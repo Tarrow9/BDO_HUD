@@ -137,7 +137,7 @@ class HUDWindow(QWidget):
     ## Initializings
     def __init__(self):
         super().__init__()
-        self.cannon = Cannon(ws_url="ws://localhost:8001/ws", http_base_url="http://localhost:8001")
+        self.cannon = Cannon(ws_url="ws://localhost:8001/ws/logs/", http_base_url="http://localhost:8001")
 
         # 윈도우 설정, click-through 설정 (WindowTransparentForInput)
         self.setWindowFlags(
