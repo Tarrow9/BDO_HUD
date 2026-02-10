@@ -80,9 +80,6 @@ def inertia_init(widget, *, gain_x=0.25, gain_y=0.20, damping=0.82, follow=0.18,
     state["teleport_x"] = int(screen_geo.width() * teleport_ratio)
     state["teleport_y"] = int(screen_geo.height() * teleport_ratio)
 
-    # 선택: dx/dy 클램프(폭주 방지)
-    # state["max_d_per_tick"] = 80  # 16ms 기준, 필요시 조절
-
     return state
 
 
@@ -100,11 +97,6 @@ def inertia_tick(widget, state):
         v = state["vel"]
         state["vel"] = QPointF(v.x() * 0.2, v.y() * 0.2)
         return
-
-    # # 선택: per-tick 클램프
-    # md = state["max_d_per_tick"]
-    # dx = max(-md, min(md, dx))
-    # dy = max(-md, min(md, dy))
 
     # 마우스 속도 크기 → 큰 이동일수록 더 크게 반응(선택)
     speed = math.hypot(dx, dy)
@@ -182,14 +174,6 @@ class HUDWindow(QWidget):
         self.create_initial_left_widgets()
         self.create_initial_right_widgets()
 
-        # CompassWidget 초기화
-        # self.azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
-        # self.azimuth_thread.angle_signal.connect(self.update_azimuth)
-        # self.new_azimuth : float = 0.0  # max: 360.0 min: 0.0
-        # self.compass_widget = None
-        # self.azimuth_widget = None
-        # self.create_initial_compass_widgets()
-
         # StatusWidget 초기화
         self.status_text_widget = None
         self.create_initial_status_text_widget()
@@ -205,13 +189,6 @@ class HUDWindow(QWidget):
         self.lr_timer.timeout.connect(lambda: self.center_shortlow_widget.set_shortlow_start_ani(self.new_shortlow))
         self.lr_timer.timeout.connect(lambda: self.right_line_widget.set_height_start_ani(self.new_cannon_angle))
         self.lr_timer.timeout.connect(lambda: self.center_cn_angle_widget.set_height_start_ani(self.new_cannon_angle))
-
-        # self.compass_timer = QTimer(self) # ALWAYS
-        # self.compass_timer.setInterval(AZIMUTH_DURATION)
-        # self.compass_timer.timeout.connect(lambda: self.compass_widget.set_rotation_start_ani(self.new_azimuth))
-        # self.compass_timer.timeout.connect(lambda: self.azimuth_widget.set_azimuth_start_ani(self.new_azimuth))
-        # self.compass_timer.start()
-        # self.azimuth_thread.start()
 
         # inertia for HUDWindow
         self._inertia_state = inertia_init(
