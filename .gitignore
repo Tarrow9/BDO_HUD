@@ -5,7 +5,6 @@ Calc_Server
 data/
 output/
 
-HUD_Client/tools.py
 HUD_Client/flow.py
 HUD_Client/chatgpt_code.py
 
