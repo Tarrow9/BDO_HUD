@@ -4,6 +4,7 @@ import threading
 import time
 import zlib
 from typing import Any, Dict, Optional
+from PyQt5.QtCore import QThread, pyqtSignal, QObject
 
 import requests
 import websocket  # websocket-client
@@ -103,8 +104,6 @@ class Cannon:
             data = json.loads(message)
         except Exception:
             data = {"type": "raw", "msg": message}
-        
-        print("WS message:", data)  # 디버그용 출력
 
         # hello 메시지에서 session_key 받기
         # 예: {"code":1,"msg":"connected","nick":"...","session_key":"..."}
@@ -179,28 +178,37 @@ class Cannon:
     # -------------------------
     # HTTP request example
     # -------------------------
-    def request_hit_table(self, h: int, v: int) -> Dict[str, Any]:
+    def request_hit_table(self, new_cannon_angle: int, new_shortlow: int) -> Dict[str, Any]:
         """
         1) /api/ingest로 {h,v} POST
         2) 받은 암호문을 decrypt_payload로 복호화
         3) 복호화된 dict(= hit_table 포함)를 반환
         """
         url = f"{self.http_base_url}/msr"
-        resp = requests.post(url, json={"h": h, "v": v}, timeout=self.connect_timeout_sec)
+        resp = requests.post(url, json={"rawangle": new_cannon_angle, "diagonal": new_shortlow}, timeout=self.connect_timeout_sec)
         resp.raise_for_status()
         enc_obj = resp.json()
         return self.decrypt_payload(enc_obj)
 
-    # -------------------------
-    # 기존 로컬 계산 (지금은 서버가 return 형태로 준다고 가정하니 그냥 placeholder)
-    # -------------------------
-    def setting_hit_table(self, new_cannon_angle, new_shortlow):
-        return {  # base table
-            0: [67.55, 75.63, 80.7, 84.17, 89.51, 96.89, 106.52, 114.56, 122.89, 138.17],
-            1: [91.38, 97.86, 104.57, 113.86, 123.55, 131.07, 138.82, 152.23, 166.25, 189.97],
-            2: [141.25, 155.73, 167.05, 174.82, 186.8, 199.18, [220.7], [238.71], 262.21, 302.12],
-            3: [171.36, 184.12, 197.35, "211.03", [225.18], [239.78], 265.14, 291.70, 313.99, 366.97],
-            4: [182.76, 190.88, 199.18, "211.96", [220.7], [229.62], "243.32", 262.21, 276.85, 296.97],
-            5: [184.18, 191.47, 198.91, 202.68, "210.33", "218.12", [226.05], [238.21], 250.69, 267.83],
-            6: [157.52, 163.41, 169.4, 175.51, 181.72, 188.04, 194.47, 204.31, "214.4", [231.75]],
-        }
+
+class HitTableWorker(QObject):
+    finished = pyqtSignal(dict)   # 성공 시 평문 dict
+    failed = pyqtSignal(str)      # 실패 시 에러 문자열
+
+    def __init__(self, cannon, rawangle: float, diagonal: int):
+        super().__init__()
+        self.cannon = cannon
+        self.rawangle = rawangle
+        self.diagonal = diagonal
+
+    def run(self):
+        try:
+            # 서버 요청, 복호화
+            data = self.cannon.request_hit_table(self.rawangle, self.diagonal)
+            if data.get("ok") != True:
+                self.failed.emit(f"{data.get('error')}")
+            chart = data.get("chart")
+            refine_chart = {int(k): v for k, v in chart.items()} if isinstance(chart, dict) else {}
+            self.finished.emit(refine_chart)
+        except Exception as e:
+            self.failed.emit(str(e))

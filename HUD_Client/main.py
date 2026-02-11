@@ -10,6 +10,7 @@ from PyQt5.QtCore import (
     QEvent,
     pyqtProperty,
     QPointF,
+    QThread,
 )
 from PyQt5.QtGui import (
     QColor,
@@ -40,7 +41,7 @@ from draw_tools import draw_neon_line
 from conf import(
     AZIMUTH_DURATION,
 )
-from tools import Cannon
+from tools import Cannon, HitTableWorker
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
@@ -138,6 +139,9 @@ class HUDWindow(QWidget):
     def __init__(self):
         super().__init__()
         self.cannon = Cannon(ws_url="ws://localhost:8001/ws/logs/", http_base_url="http://localhost:8001")
+        self._hit_thread = None
+        self._hit_worker = None
+        self._hit_request_inflight = False
 
         # 윈도우 설정, click-through 설정 (WindowTransparentForInput)
         self.setWindowFlags(
@@ -164,6 +168,7 @@ class HUDWindow(QWidget):
         self.move(screen_geometry.center() - self.rect().center())  # 화면 중앙에 배치
 
         # LineWidget 리스트 초기화
+        ## shortlow, cannon angle => diagonal, rawangle
         self.left_line_widget = None
         self.right_line_widget = None
         self.new_shortlow : int = 100 # max: 550 min: 0, center0 = 55*30 - 15
@@ -354,19 +359,62 @@ class HUDWindow(QWidget):
             self.status_text_widget.new_text = "CRITICAL ERROR"
             return
 
-        # cannon calc, 추후 서버통신으로 수정
-        new_hit_table = self.cannon.setting_hit_table(self.new_cannon_angle/10, self.new_shortlow)
-        print(self.cannon.request_hit_table(self.new_cannon_angle/10, self.new_shortlow))
-        import time
-        time.sleep(0.3)
+        self.request_hit_table_async(self.new_cannon_angle/10, self.new_shortlow)
+
+    def request_hit_table_async(self, rawangle: float, diagonal: int):
+        # 중복 요청 방지(원하면 큐로 바꿀 수도 있어요)
+        if self._hit_request_inflight:
+            return
+        self._hit_request_inflight = True
+
+        # UI 상태 표시
+        self.status_text_widget.change_color(self._base_color)
+        self.status_text_widget.new_text = "REQUESTING..."
+
+        self._hit_thread = QThread(self)
+        self._hit_worker = HitTableWorker(self.cannon, rawangle, diagonal)
+        self._hit_worker.moveToThread(self._hit_thread)
+
+        # 스레드 시작 시 worker.run 실행
+        self._hit_thread.started.connect(self._hit_worker.run)
+
+        # 결과 처리(메인 스레드에서 실행됨)
+        self._hit_worker.finished.connect(self.on_hit_table_success)
+        self._hit_worker.failed.connect(self.on_hit_table_failed)
+
+        # 정리
+        self._hit_worker.finished.connect(self._hit_thread.quit)
+        self._hit_worker.failed.connect(self._hit_thread.quit)
+        self._hit_thread.finished.connect(self._cleanup_hit_thread)
+
+        self._hit_thread.start()
+
+    def on_hit_table_success(self, hit_table: dict):
+        self._hit_request_inflight = False
 
         self.status_text_widget.change_color(self._base_color)
         self.status_text_widget.new_text = "FIXED"
 
-        self.hit_table_widget.hit_table = new_hit_table
+        self.hit_table_widget.hit_table = hit_table
         self.hit_table_widget.show()
         self.hit_table_widget.ani_count = -1
-    
+        print(self.cannon.chat_log[-1])  # 가장 최근 채팅 로그 출력
+
+    def on_hit_table_failed(self, err: str):
+        self._hit_request_inflight = False
+
+        self.status_text_widget.change_color(self._warnining_color)
+        self.status_text_widget.new_text = "CONNECT FAIL"
+
+    def _cleanup_hit_thread(self):
+        # QObject/QThread 누수 방지
+        if self._hit_worker is not None:
+            self._hit_worker.deleteLater()
+            self._hit_worker = None
+        if self._hit_thread is not None:
+            self._hit_thread.deleteLater()
+            self._hit_thread = None
+
     def update_azimuth(self, new_azimuth):
         self.new_azimuth = new_azimuth
 
@@ -504,7 +552,7 @@ class KeyboardActions(QObject):
             QMetaObject.invokeMethod(self.scan_area_window, "hide", Qt.QueuedConnection)
             QMetaObject.invokeMethod(self.hud_window.hit_table_widget, "hide", Qt.QueuedConnection)
             QMetaObject.invokeMethod(self.hud_window.lr_timer, "stop", Qt.QueuedConnection)
-            if True: # server request 성공시
+            if self.hud_window.cannon._session_key is not None: # server request 성공시
                 self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
                 self.hud_window.status_text_widget.new_text = "ONLINE"
             else:
@@ -628,6 +676,7 @@ if __name__ == '__main__':
     # 종료 시 스레드 정리(권장)
     def _cleanup():
         azimuth_thread.stop()
+        hud_window.cannon.stop_ws()
 
     app.aboutToQuit.connect(_cleanup)
 
