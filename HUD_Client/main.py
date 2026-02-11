@@ -1,6 +1,7 @@
 import sys, os
 import threading
 import math
+import json
 from PyQt5.QtCore import (
     QMetaObject,
     Qt,
@@ -33,6 +34,7 @@ from widgets import (
     AzimuthWidget,
     StatusTextWidget,
     HitTableWidget,
+    ChatLogWidget,
 )
 from screen_scan import (
     AzimuthCaptureThread,
@@ -151,7 +153,6 @@ class HUDWindow(QWidget):
         self.setWindowOpacity(0.75)
 
         # 폰트, 색 설정
-        current_dir = os.path.dirname(os.path.abspath(__file__))
         font_path = resource_path("fonts/ocr-b.ttf")
         font_id = QFontDatabase.addApplicationFont(font_path)
         if font_id != -1:
@@ -206,6 +207,13 @@ class HUDWindow(QWidget):
         self._inertia_timer.setInterval(16)
         self._inertia_timer.timeout.connect(lambda: inertia_tick(self, self._inertia_state))
         self._inertia_timer.start()
+
+        # ✅ chat log polling
+        self._last_chat_len = 0
+        self._chat_timer = QTimer(self)
+        self._chat_timer.setInterval(300)
+        self._chat_timer.timeout.connect(self._drain_chat_log_to_widget)
+        self._chat_timer.start()
 
     def _update_trail_motion(self):
         cur = QCursor.pos()
@@ -325,6 +333,14 @@ class HUDWindow(QWidget):
         self.center_cn_angle_widget = CNAngleWidget(self)
         self.center_cn_angle_widget.move(INF_RIGHT - t - 145, center_y - 15)
         self.center_cn_angle_widget.show()
+
+        # ✅ ChatLogWidget (ShortLowWidget 왼쪽에 배치)
+        self.chat_log_widget = ChatLogWidget(self, max_lines=12)
+        gap = 150
+        chat_x = self.center_shortlow_widget.x() + self.chat_log_widget.width() + gap
+        chat_y = self.center_shortlow_widget.y() - 130  # 위로 조금 올려서 “맨 위부터 출력” 느낌
+        self.chat_log_widget.move(chat_x, chat_y)
+        self.chat_log_widget.show()
     
     def create_initial_compass_widgets(self):
         """초기 CompassWidget 생성 및 배치"""
@@ -348,6 +364,23 @@ class HUDWindow(QWidget):
         self.hit_table_widget = HitTableWidget(self)
         self.hit_table_widget.move(INF_RIGHT+180, 390)
         self.hit_table_widget.hide()
+
+    def _drain_chat_log_to_widget(self):
+        # cannon.chat_log는 스레드에서 append 될 수 있으니 “스냅샷”으로 읽기
+        logs = list(self.cannon.chat_log)
+        cur_len = len(logs)
+
+        if cur_len <= self._last_chat_len:
+            return
+
+        new_items = logs[self._last_chat_len:cur_len]
+        self._last_chat_len = cur_len
+
+        for item in new_items:
+            if item["type"] == "log":
+                self.chat_log_widget.append_line(item["msg"])
+            else:
+                print(item["msg"])
 
     # hit table handling
     def hit_table_fix(self):
@@ -415,6 +448,7 @@ class HUDWindow(QWidget):
             self._hit_thread.deleteLater()
             self._hit_thread = None
 
+    # Update Methods
     def update_azimuth(self, new_azimuth):
         self.new_azimuth = new_azimuth
 
@@ -433,7 +467,14 @@ class ScanAreaWindow(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.resize(250, 550)
-        self.setGeometry(1330, 440, 250, 550)
+        
+        # 화면 중앙 하단에 고정 배치(원하면 좌표 조절)
+        screen_geo = QApplication.desktop().availableGeometry()
+        x = screen_geo.center().x() - (self.width() // 2) - 265
+        y = screen_geo.center().y() - (self.height() // 2) - 5
+        self.move(x, y)
+        
+        # self.setGeometry(1330, 440, 250, 550)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.Tool)
         self.setWindowOpacity(0.5)  # 불투명
 
@@ -625,7 +666,7 @@ class CompassWindow(QWidget):
         # 화면 중앙 하단에 고정 배치(원하면 좌표 조절)
         screen_geo = QApplication.desktop().availableGeometry()
         x = screen_geo.center().x() - self.width() // 2
-        y = screen_geo.top() + 885   # 나침반 창 위치 조절
+        y = screen_geo.center().y() + 195   # 나침반 창 위치 조절
         self.move(x, y)
 
     def update_azimuth(self, new_azimuth):

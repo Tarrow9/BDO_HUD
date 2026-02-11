@@ -1,7 +1,8 @@
 import math
+import os, sys
 
 from PyQt5.QtCore import Qt, QPoint, pyqtProperty, QPropertyAnimation, QEasingCurve, QTimer, QEvent
-from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap
+from PyQt5.QtGui import QColor, QPainter, QPen, QFont, QPixmap, QFontDatabase
 from PyQt5.QtWidgets import QWidget, QLabel
 
 from draw_tools import draw_neon_line
@@ -14,6 +15,12 @@ INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
 INF_HIGH = 60  # 좌측 세로선 상단 y
 LINE_LEN = 30  # 가로선 길이
+
+def resource_path(relative_path: str):
+    """PyInstaller onefile 대응 경로 헬퍼"""
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
 
 class LeftLineWidget(QLabel):
     def __init__(self, *args, **kwargs):
@@ -548,3 +555,52 @@ class HitTableWidget(QWidget):
                         break
             self.ani_count += 1
         painter.end()
+
+class ChatLogWidget(QWidget):
+    def __init__(self, parent=None, max_lines=12):
+        super().__init__(parent)
+        self.max_lines = max_lines
+        self.lines = []  # List[str]
+        font_path = resource_path("fonts/ocr-b.ttf")
+        font_id = QFontDatabase.addApplicationFont(font_path)
+        if font_id != -1:
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 10)
+            self.setFont(font)
+        else:
+            self.setFont(QFont("Arial", 10))
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setFixedSize(780, 200)  # 필요하면 조절!
+        self._text_color = QColor(0, 255, 0, 192)
+
+    def append_line(self, s: str):
+        s = (s or "").strip()
+        if not s:
+            return
+        self.lines.append(s)
+        if len(self.lines) > self.max_lines:
+            # 맨 위부터 제거
+            self.lines = self.lines[-self.max_lines:]
+        self.update()
+
+    def set_lines(self, lines):
+        self.lines = list(lines)[-self.max_lines:]
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+
+        # 배경(원하면)
+        painter.fillRect(self.rect(), QColor(0, 0, 0, 80))
+
+        painter.setPen(self._text_color)
+
+        x = 8
+        y = 18
+        line_h = 16
+
+        for line in self.lines:
+            painter.drawText(x, y, line)
+            y += line_h
+            if y > self.height() - 6:
+                break

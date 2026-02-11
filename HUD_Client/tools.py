@@ -96,7 +96,6 @@ class Cannon:
     # WS callbacks
     def _on_open(self, ws):
         self._append_chat({"type": "ws", "msg": "connected"})
-        # session_key는 서버가 hello 메시지로 내려주니 여기서 따로 할 건 없음
 
     def _on_message(self, ws, message: str):
         # 서버가 보내는 모든 브로드캐스트/hello를 여기서 받음
@@ -117,17 +116,17 @@ class Cannon:
                 if len(key_bytes) in (16, 24, 32):
                     with self._lock:
                         self._session_key = key_bytes
-                    self._append_chat({"type": "ws", "msg": f"{nick} Authorized."})
+                    self._append_chat({"type": "log", "msg": f"{nick} Authorized."})
                 else:
-                    self._append_chat({"type": "ws_error", "msg": f"bad session_key length={len(key_bytes)}"})
+                    self._append_chat({"type": "ws_error", "msg": f"bad session"})
             except Exception as e:
-                self._append_chat({"type": "ws_error", "msg": f"session_key decode error: {e}"})
-
+                self._append_chat({"type": "ws_error", "msg": f"session error"})
         # 나머지 메시지는 채팅/로그로 저장
-        self._append_chat({"type": "log", "msg": f"{ts} {nick} {msg}"})
+        else:
+            self._append_chat({"type": "log", "msg": f"{ts} {nick} {msg}"})
 
     def _on_close(self, ws, close_status_code, close_msg):
-        self._append_chat({"type": "ws", "msg": f"closed code={close_status_code} reason={close_msg}"})
+        self._append_chat({"type": "ws", "msg": f"closed by {close_msg}"})
 
     def _on_error(self, ws, error):
         self._append_chat({"type": "ws_error", "msg": str(error)})
