@@ -564,10 +564,10 @@ class ChatLogWidget(QWidget):
         font_path = resource_path("fonts/ocr-b.ttf")
         font_id = QFontDatabase.addApplicationFont(font_path)
         if font_id != -1:
-            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 10)
+            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
             self.setFont(font)
         else:
-            self.setFont(QFont("Arial", 10))
+            self.setFont(QFont("Arial", 14))
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(780, 200)  # 필요하면 조절!
         self._text_color = QColor(0, 255, 0, 192)

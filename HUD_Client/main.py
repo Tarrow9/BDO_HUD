@@ -501,18 +501,15 @@ class HUDWindow(QWidget):
 
         self._closechart_thread.start()
 
-
     def _on_closechart_ok(self, status_code: int):
         self._closechart_inflight = False
         self.status_text_widget.change_color(self._base_color)
         self.status_text_widget.new_text = "ONLINE"
 
-
     def _on_closechart_fail(self, err: str):
         self._closechart_inflight = False
         self.status_text_widget.change_color(self._warning_color)
         self.status_text_widget.new_text = "OFFLINE"
-
 
     def _cleanup_closechart_thread(self):
         if getattr(self, "_closechart_worker", None) is not None:
