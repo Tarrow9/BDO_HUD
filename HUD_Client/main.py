@@ -12,6 +12,7 @@ from PyQt5.QtCore import (
     pyqtProperty,
     QPointF,
     QThread,
+    pyqtSlot,
 )
 from PyQt5.QtGui import (
     QColor,
@@ -43,7 +44,7 @@ from draw_tools import draw_neon_line
 from conf import(
     AZIMUTH_DURATION,
 )
-from tools import Cannon, HitTableWorker
+from tools import Cannon, HitTableWorker, SimpleGetWorker
 
 INF_LEFT = 1000  # 좌측 세로선 상단 x
 INF_RIGHT = 1800  # 우측 세로선 상단 x
@@ -160,7 +161,7 @@ class HUDWindow(QWidget):
             self.setFont(font)
         else:
             self.setFont(QFont("Arial", 14))
-        self._warnining_color = QColor(255, 0, 0, 192)  # 50% 투명한 빨간색
+        self._warning_color = QColor(255, 0, 0, 192)  # 50% 투명한 빨간색
         self._base_color = QColor(0, 255, 0, 192)  # 50% 투명한 초록색
 
         # 창 크기 및 위치
@@ -388,7 +389,7 @@ class HUDWindow(QWidget):
         shortlow_check = 0 < self.new_shortlow < 550
         height_check = -450 < self.new_cannon_angle < 450
         if not (shortlow_check and height_check):
-            self.status_text_widget.change_color(self._warnining_color)
+            self.status_text_widget.change_color(self._warning_color)
             self.status_text_widget.new_text = "CRITICAL ERROR"
             return
 
@@ -436,7 +437,7 @@ class HUDWindow(QWidget):
     def on_hit_table_failed(self, err: str):
         self._hit_request_inflight = False
 
-        self.status_text_widget.change_color(self._warnining_color)
+        self.status_text_widget.change_color(self._warning_color)
         self.status_text_widget.new_text = "CONNECT FAIL"
 
     def _cleanup_hit_thread(self):
@@ -447,6 +448,52 @@ class HUDWindow(QWidget):
         if self._hit_thread is not None:
             self._hit_thread.deleteLater()
             self._hit_thread = None
+
+    # closechart handling
+    @pyqtSlot()
+    def request_closechart_async(self):
+        # 중복 호출 방지(원하면 제거 가능)
+        if getattr(self, "_closechart_inflight", False):
+            return
+        self._closechart_inflight = True
+
+        url = f"{self.cannon.http_base_url}/closechart"  # cannon에 base_url 넣어둔 상태 가정
+
+        self._closechart_thread = QThread(self)
+        self._closechart_worker = SimpleGetWorker(url, timeout_sec=2.0)
+        self._closechart_worker.moveToThread(self._closechart_thread)
+
+        self._closechart_thread.started.connect(self._closechart_worker.run)
+
+        self._closechart_worker.finished.connect(self._on_closechart_ok)
+        self._closechart_worker.failed.connect(self._on_closechart_fail)
+
+        self._closechart_worker.finished.connect(self._closechart_thread.quit)
+        self._closechart_worker.failed.connect(self._closechart_thread.quit)
+        self._closechart_thread.finished.connect(self._cleanup_closechart_thread)
+
+        self._closechart_thread.start()
+
+
+    def _on_closechart_ok(self, status_code: int):
+        self._closechart_inflight = False
+        self.status_text_widget.change_color(self._base_color)
+        self.status_text_widget.new_text = "ONLINE"
+
+
+    def _on_closechart_fail(self, err: str):
+        self._closechart_inflight = False
+        self.status_text_widget.change_color(self._warning_color)
+        self.status_text_widget.new_text = "OFFLINE"
+
+
+    def _cleanup_closechart_thread(self):
+        if getattr(self, "_closechart_worker", None) is not None:
+            self._closechart_worker.deleteLater()
+            self._closechart_worker = None
+        if getattr(self, "_closechart_thread", None) is not None:
+            self._closechart_thread.deleteLater()
+            self._closechart_thread = None
 
     # Update Methods
     def update_azimuth(self, new_azimuth):
@@ -595,9 +642,14 @@ class KeyboardActions(QObject):
             QMetaObject.invokeMethod(self.hud_window.lr_timer, "stop", Qt.QueuedConnection)
             if self.hud_window.cannon._session_key is not None: # server request 성공시
                 self.hud_window.status_text_widget.change_color(self.hud_window._base_color)
-                self.hud_window.status_text_widget.new_text = "ONLINE"
+                self.hud_window.status_text_widget.new_text = "REQUESTING..."
+                QMetaObject.invokeMethod(
+                    self.hud_window,
+                    "request_closechart_async",
+                    Qt.QueuedConnection
+                )
             else:
-                self.hud_window.status_text_widget.change_color(self.hud_window._warnining_color)
+                self.hud_window.status_text_widget.change_color(self.hud_window._warning_color)
                 self.hud_window.status_text_widget.new_text = "OFFLINE"
         else:
             self.hud_window.status_text_widget.change_color(self.hud_window._base_color)

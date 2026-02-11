@@ -188,6 +188,14 @@ class Cannon:
         resp.raise_for_status()
         enc_obj = resp.json()
         return self.decrypt_payload(enc_obj)
+    
+    def request_close_chart(self):
+        url = f"{self.http_base_url}/closechart"
+        try:
+            resp = requests.get(url, timeout=self.connect_timeout_sec)
+            resp.raise_for_status()
+        except Exception:
+            pass
 
 
 class HitTableWorker(QObject):
@@ -209,5 +217,21 @@ class HitTableWorker(QObject):
             chart = data.get("chart")
             refine_chart = {int(k): v for k, v in chart.items()} if isinstance(chart, dict) else {}
             self.finished.emit(refine_chart)
+        except Exception as e:
+            self.failed.emit(str(e))
+
+class SimpleGetWorker(QObject):
+    finished = pyqtSignal(int)
+    failed = pyqtSignal(str)
+
+    def __init__(self, url: str, timeout_sec: float = 2.0):
+        super().__init__()
+        self.url = url
+        self.timeout_sec = timeout_sec
+
+    def run(self):
+        try:
+            r = requests.get(self.url, timeout=self.timeout_sec)
+            self.finished.emit(r.status_code)
         except Exception as e:
             self.failed.emit(str(e))
