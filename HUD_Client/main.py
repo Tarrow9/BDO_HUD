@@ -86,7 +86,6 @@ def inertia_init(widget, *, gain_x=0.25, gain_y=0.20, damping=0.82, follow=0.18,
 
     return state
 
-
 def inertia_tick(widget, state):
     """한 틱 업데이트: 마우스 이동에 따른 잔상 관성 적용 + wrap 방지."""
     cur = QCursor.pos()
@@ -136,12 +135,40 @@ def inertia_tick(widget, state):
     new_y = now.y() + (target_y - now.y()) * state["follow"]
     widget.move(int(new_x), int(new_y))
 
+def load_server_address_from_file() -> tuple[str, int]:
+    """
+    드래그앤드롭으로 받은 파일에서 ip:port 읽어서 반환
+    기본값은 localhost
+    """
+    default_ip = "127.0.0.1"
+    default_port = 8001
+
+    if len(sys.argv) < 2:
+        return default_ip, default_port
+
+    path = sys.argv[1]
+
+    if not os.path.exists(path):
+        return default_ip, default_port
+
+    with open(path, "r", encoding="utf-8") as f:
+        raw = f.read().strip()
+
+    # 172.30.1.12:8001 형태
+    if ":" in raw:
+        ip, port = raw.split(":", 1)
+        return ip.strip(), int(port.strip())
+
+    # ip만 적혀있으면 기본포트 사용
+    return raw.strip(), default_port
+
 
 class HUDWindow(QWidget):
     ## Initializings
     def __init__(self):
         super().__init__()
-        self.cannon = Cannon(ws_url="ws://localhost:8001/ws/logs/", http_base_url="http://localhost:8001")
+        ip, port = load_server_address_from_file()
+        self.cannon = Cannon(ws_url=f"ws://{ip}:{port}/ws/logs/", http_base_url=f"http://{ip}:{port}")
         self._hit_thread = None
         self._hit_worker = None
         self._hit_request_inflight = False
@@ -756,7 +783,12 @@ if __name__ == '__main__':
     scan_area_window.shortlow_signal.connect(hud_window.update_shortlow)
 
     # ✅ 방위각 캡처 스레드 시작 + compass_window로 연결
-    azimuth_thread = AzimuthCaptureThread((3122, 30, 3420, 290))
+    screen = QApplication.primaryScreen().geometry()
+    x1 = screen.width() - 20 - 298
+    y1 = 30
+    x2 = x1 + 298
+    y2 = y1 + 260
+    azimuth_thread = AzimuthCaptureThread((x1, y1, x2, y2))
     azimuth_thread.angle_signal.connect(compass_window.update_azimuth)
     azimuth_thread.start()
 
