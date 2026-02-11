@@ -561,13 +561,6 @@ class ChatLogWidget(QWidget):
         super().__init__(parent)
         self.max_lines = max_lines
         self.lines = []  # List[str]
-        font_path = resource_path("fonts/ocr-b.ttf")
-        font_id = QFontDatabase.addApplicationFont(font_path)
-        if font_id != -1:
-            font = QFont(QFontDatabase.applicationFontFamilies(font_id)[0], 14)
-            self.setFont(font)
-        else:
-            self.setFont(QFont("Arial", 14))
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setFixedSize(780, 200)  # 필요하면 조절!
         self._text_color = QColor(0, 255, 0, 192)
@@ -592,8 +585,10 @@ class ChatLogWidget(QWidget):
 
         # 배경(원하면)
         painter.fillRect(self.rect(), QColor(0, 0, 0, 80))
-
         painter.setPen(self._text_color)
+        font = self.font()
+        font.setPointSize(10)
+        painter.setFont(font)
 
         x = 8
         y = 18
