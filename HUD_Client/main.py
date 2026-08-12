@@ -748,8 +748,19 @@ class CompassWindow(QWidget):
     def update_azimuth(self, new_azimuth):
         self.new_azimuth = new_azimuth
 
+def set_cpu_affinity(cpu_index: int):
+    if sys.platform != "win32":
+        return
+
+    mask = 1 << cpu_index
+    handle = ctypes.windll.kernel32.GetCurrentProcess()
+
+    if not ctypes.windll.kernel32.SetProcessAffinityMask(handle, mask):
+        raise ctypes.WinError()
 
 if __name__ == '__main__':
+    set_cpu_affinity(0) # CPU 0번에서만 활동하도록 강제
+    
     app = QApplication([])
 
     hud_window = HUDWindow()
