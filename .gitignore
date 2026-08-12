@@ -5,6 +5,7 @@ Calc_Server
 data/
 output/
 
+build_cmd.sh
 HUD_Client/flow.py
 HUD_Client/chatgpt_code.py
 

@@ -1,5 +1,6 @@
 import sys, os
 import ctypes
+from ctypes import wintypes
 import threading
 import math
 import json
@@ -750,13 +751,30 @@ class CompassWindow(QWidget):
         self.new_azimuth = new_azimuth
 
 def set_cpu_affinity(cpu_index: int):
+    # Windows 환경이 아니면 무시
     if sys.platform != "win32":
         return
 
-    mask = 1 << cpu_index
-    handle = ctypes.windll.kernel32.GetCurrentProcess()
+    kernel32 = ctypes.windll.kernel32
+    
+    # 1. GetCurrentProcess 함수의 반환 형식을 HANDLE(포인터 크기)로 정의
+    kernel32.GetCurrentProcess.argtypes = []
+    kernel32.GetCurrentProcess.restype = wintypes.HANDLE
 
-    if not ctypes.windll.kernel32.SetProcessAffinityMask(handle, mask):
+    # 2. 64비트 환경의 마스크 크기(ULONG_PTR = c_uint64) 정의
+    # 파이썬 3.12.4 64비트에서 데이터가 잘리거나 왜곡되는 것을 방지합니다.
+    ULONG_PTR = ctypes.c_uint64 
+    
+    kernel32.SetProcessAffinityMask.argtypes = [wintypes.HANDLE, ULONG_PTR]
+    kernel32.SetProcessAffinityMask.restype = wintypes.BOOL
+
+    # 3. 비트마스크 생성 및 API 호출
+    # cpu_index가 0이면 mask는 1 (이진수 0001 -> 0번 코어)
+    mask = 1 << cpu_index
+    handle = kernel32.GetCurrentProcess()
+
+    # 선호도 설정 실행
+    if not kernel32.SetProcessAffinityMask(handle, mask):
         raise ctypes.WinError()
 
 if __name__ == '__main__':
